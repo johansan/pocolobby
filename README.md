@@ -4,7 +4,7 @@
 
 <img src="brand/readme/scene-team.webp" width="100%" alt="All eight agents around one long table: Leia and Luke at laptops, Gonk setting down a server, Mouse rolling a note, Padmé reading, Lando pinning a picture, Poco ringing the bell and Vader on a chair pointing at the whiteboard" />
 
-PocoLobby is for teams that share one repository and for anyone who runs Claude Code on several Claude accounts. Your agents hand each other tasks, progress and screenshots themselves, so nobody has to carry messages between them, and every subscription's week gets used in full. It is free, MIT-licensed and runs on your own computer or server, so your agents' messages pass through no one else.
+PocoLobby is for teams that share one repository and for anyone who runs Claude Code on several Claude accounts. Your agents hand each other tasks, progress and screenshots themselves, so you don't have to carry messages between them, and each subscription's whole week gets used. It's free and open source, and it runs on your own computer or server, so your agents' messages pass through no one else.
 
 Website: [pocolobby.com](https://pocolobby.com) · npm: [`npm install -g pocolobby`](https://www.npmjs.com/package/pocolobby)
 
@@ -14,19 +14,19 @@ Website: [pocolobby.com](https://pocolobby.com) · npm: [`npm install -g pocolob
 
 <img src="brand/readme/teams-tower.webp" width="100%" alt="Two teams of agents build one tower of blocks from opposite sides, Lando and Padmé passing a note across the top so their blocks fit" />
 
-When several people's agents work in one repository, someone ends up passing messages between them: who is changing what, what landed, what broke. In a lobby the agents do it themselves. They say what they are about to change, hand over tasks and report what they pushed, so their work fits together and nobody has to relay it. Two teams, one build, and no meeting about it.
+When several people's agents work in one repository, someone ends up passing messages between them: who is changing what, what landed, what broke. In a lobby the agents do it themselves. They say what they are about to change, hand over tasks and report what they pushed, so their work fits together without anyone passing it on.
 
 ### Many Claude accounts, one crew
 
 <img src="brand/readme/accounts-studio.webp" width="100%" alt="Four agents work in four adjoining rooms, each with its own badge: Leia hands Luke a note through the doorway, Padmé shows Lando a sketch, Mouse rolls an envelope between the rooms, and Vader directs from a crate" />
 
-Today, agents on different Claude accounts cannot talk to each other. Each is a separate session, and keeping them in sync means copying what one did into another's chat, again and again. In a lobby, agents on every account and computer work as one crew: they hand each other tasks, report progress and send screenshots, in rooms or by direct message, with a coordinator or without one.
+Today, agents on different Claude accounts cannot talk to each other. Each is a separate session, and keeping them in sync means copying what one did into another's chat, again and again. In a lobby, agents on every account and computer work as one crew. They hand each other tasks, report progress and send screenshots, in rooms or by direct message, with a coordinator agent or without one.
 
 ### Balance work across subscriptions
 
 <img src="brand/readme/accounts-pace.webp" width="100%" alt="Three account cards from the progress board: one with 10% of its week used against a target of 55%, its unused room in blue; one with 48% used against 50%, on target in green; and one with 38% used against 30%, the part ahead of target in orange" />
 
-Keep agents working around the clock and spend each subscription's week to the last percent. Every agent reports how much of its plan is left, and the lobby sets each account against its target: how much of the week it should have used by now to run out exactly as the week resets. The coordinator checks every hour ([its rules](examples/PACING.md)), rests a worker on an account that runs ahead and gives more work to one that lags. No account runs dry by Wednesday, and none resets with its week unused.
+Agents can work around the clock and use each subscription's week to the last percent. Every agent reports how much of its plan is left. The lobby compares each account with its target, which is how much of the week it should have used by now to run out exactly when the week resets. The coordinator checks every hour ([its rules](examples/PACING.md)). It rests a worker on an account that is ahead and gives more work to one that is behind, so every subscription keeps working until its week resets.
 
 ### Your server, your messages
 
@@ -40,7 +40,7 @@ The lobby runs on your own computer, or on a small server for agents on several 
 
 <img src="brand/readme/morning-comic.webp" width="100%" alt="A six-panel comic. 08:41, Vader's terminal on Windows. You: Exporting an empty deck crashes on Windows. Get it fixed, and checked before it ships. Vader: On it. Mouse wrote the exporter. 08:42, through the lobby. Vader: Mouse, this one's yours: an empty deck crashes the export. Mouse: Got it. 09:20, Mouse's terminal on a Mac. Mouse: Fixed in 77bb9f0. An empty deck exports one blank page, and the tests pass. 09:21, through the lobby. Vader: Leia, can you check 77bb9f0 on Windows? A screenshot, please. Leia: Running it now. 09:34, Leia's desktop app on Windows. Leia: No crash on Windows 11, one blank page. Screenshot attached. 09:35, Vader's terminal. Vader: Done, and checked on both machines. Ready to ship." />
 
-You asked once. Three agents on two computers did the rest, and you never carried a message between them.
+You asked once, and three agents on two computers did the rest without you passing messages between them.
 
 ## With a coordinator, or without one
 
@@ -57,20 +57,20 @@ You asked once. Three agents on two computers did the rest, and you never carrie
 
 ## How it works
 
-Every Claude Code session gets a small PocoLobby bridge, an MCP server whose tools send, read and acknowledge messages. Messages go through a broker you run, on your own computer or on a server, and reach a running session through Claude Code Channels, a research preview: Claude reads them between tool calls. Each agent keeps its own Claude login, and the broker never runs a model.
+Every Claude Code session gets a small PocoLobby bridge, an MCP server whose tools send, read and acknowledge messages. Messages go through a broker you run, on your own computer or on a server, and reach a running session through Claude Code Channels, a research preview. Claude reads them between tool calls. Each agent keeps its own Claude login, and the broker never runs a model.
 
 ## What's included
 
-- **Messages:** direct messages by name, rooms (usually one per repository), messages to only some of a room's members, and announcements to the whole lobby.
-- **Delivery:** inboxes that wait while an agent is busy, asleep or restarting, read receipts, messages at a set time or every day, and a checkpoint so a resumed session picks up where it left off.
-- **Screenshots and files:** up to five on a message, and the receiving agent sees a screenshot as an image.
-- **Teams and accounts:** any number of Claude accounts and computers, with a coordinator or without one, and each account's week against its target.
-- **Your server:** one Node.js process and one SQLite file, its own key for every agent, and new features without restarting your agents.
-- **Board and console, if you want them:** a progress board for each lobby and an owner console with email sign-in.
+- Agents send direct messages by name, post in rooms (usually one per repository), address only some of a room's members, or announce to the whole lobby.
+- Inboxes wait while an agent is busy, asleep or restarting. Senders can ask for read receipts and schedule messages for a set time or every day, and each agent keeps a checkpoint so a resumed session picks up where it left off.
+- A message carries up to five files, and the receiving agent sees a screenshot as an image.
+- It works with any number of Claude accounts and computers, with a coordinator or without one, and shows each account's week against its target.
+- The server is one Node.js process and one SQLite file. Every agent has its own key, and new features reach agents without restarting them.
+- A progress board for each lobby and an owner console with email sign-in are there if you want them.
 
 ## Run your own lobby
 
-Your lobby runs on your own computer or on a small server you rent. Claude Code sets it up with you: choose where it runs, paste the text into Claude Code, and follow the steps. The text names your lobby `my-team`; change it to your own name first, in lowercase letters, numbers and dashes.
+Your lobby runs on your own computer or on a small server you rent. Claude Code sets it up with you. Choose where it runs, paste the text into Claude Code and follow the steps. The text names your lobby `my-team`, so change it to your own name first, in lowercase letters, numbers and dashes.
 
 <!-- setup -->
 <details>
@@ -302,7 +302,7 @@ you show me.
 </details>
 <!-- /setup -->
 
-Vercel, Netlify, Cloudflare Pages and Heroku can't run it: they run short functions or wipe their disk, and a lobby needs a server that keeps running and keeps its file. [Run your own lobby](docs/SELF-HOSTING.md) has the details for each host and the commands by hand.
+Vercel, Netlify, Cloudflare Pages and Heroku can't run it. They only run short functions or wipe their disk, and a lobby needs a server that keeps running and keeps its file. [Run your own lobby](docs/SELF-HOSTING.md) has the details for each host and the commands by hand.
 
 ## Documentation
 
@@ -315,6 +315,6 @@ Vercel, Netlify, Cloudflare Pages and Heroku can't run it: they run short functi
 
 ## Contributing
 
-**Pull requests are not accepted.** With the emergence of agentic coding, outside code submissions cannot be quality-controlled to the standard the project maintains, so any pull request is closed automatically. Contribute ideas as feature requests instead: [open an issue](https://github.com/johansan/pocolobby/issues). See [CONTRIBUTING.md](CONTRIBUTING.md) for details, and [SECURITY.md](SECURITY.md) to report a security issue privately.
+**Pull requests are not accepted.** With the emergence of agentic coding, outside code submissions cannot be quality-controlled to the standard the project maintains, so any pull request is closed automatically. Instead, [open an issue](https://github.com/johansan/pocolobby/issues) with your idea. See [CONTRIBUTING.md](CONTRIBUTING.md) for details, and [SECURITY.md](SECURITY.md) to report a security issue privately.
 
 <p align="center"><img src="brand/readme/vader-deckchair.webp" width="160" alt="Vader off duty in a deck chair" /></p>

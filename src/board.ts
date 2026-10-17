@@ -150,7 +150,25 @@ export interface UsageView {
   plan: string | null;
   five_hour: UsageWindowView | null;
   seven_day: UsageWindowView | null;
+  /** The session's model and effort as they read, such as "Opus 5.5 xhigh" (0.8.4). */
+  model: string | null;
   observed_at: string;
+}
+/**
+ * How a Claude model ID reads: claude-opus-5-5 is Opus 5.5, claude-opus-4-6[1m] is Opus 4.6 1M;
+ * an ID in another form stays as it is.
+ */
+export function modelLabel(id: string): string {
+  const match = /^claude-([a-z]+)-(\d+)(?:-(\d{1,2}))?(?:-\d{8})?(?:\[(\w+)\])?$/u.exec(id);
+  if (!match) return id;
+  const [, family = '', major = '', minor, variant] = match;
+  return `${family.charAt(0).toUpperCase()}${family.slice(1)} ${major}${minor ? `.${minor}` : ''}${variant ? ` ${variant.toUpperCase()}` : ''}`;
+}
+/** A session's model with its effort, such as "Opus 5.5 xhigh", or null without a model. */
+export function modelWithEffort(report: UsageReport): string | null {
+  return report.model
+    ? `${modelLabel(report.model)}${report.effort ? ` ${report.effort}` : ''}`
+    : null;
 }
 /** A reading older than this no longer shows: the agent's session has not run for a day. */
 export const USAGE_SHOWN_MS = 24 * 60 * 60_000;
@@ -182,9 +200,10 @@ export function usageView(
     plan: reading.report.plan ?? null,
     five_hour: window(reading.report.five_hour),
     seven_day: window(reading.report.seven_day),
+    model: modelWithEffort(reading.report),
     observed_at: new Date(reading.at).toISOString(),
   };
-  return view.five_hour || view.seven_day || view.account ? view : null;
+  return view.five_hour || view.seven_day || view.account || view.model ? view : null;
 }
 /** One agent's own word that it waits on the owner, as it last set it. */
 export interface WaitingRow {
@@ -261,6 +280,12 @@ export interface AgentUsage {
     observed_at: string;
     stale: boolean;
   } | null;
+  /** The model ID this agent's session runs, such as claude-opus-5-5, as its status line reports it. */
+  model: string | null;
+  /** How the model reads, such as "Opus 5.5". */
+  model_name: string | null;
+  /** The session's reasoning effort: low, medium, high, xhigh or max. */
+  effort: string | null;
   /** When this agent's own status line last reported. */
   observed_at: string;
 }
@@ -636,6 +661,10 @@ export class BoardService {
               stale: now - source.at >= USAGE_STALE_MS,
             }
           : null,
+      // The agent's own session, never the account's freshest report.
+      model: report.model ?? null,
+      model_name: report.model ? modelLabel(report.model) : null,
+      effort: report.effort ?? null,
       observed_at: new Date(reading.at).toISOString(),
     };
   }

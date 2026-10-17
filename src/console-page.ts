@@ -307,7 +307,7 @@ export function renderNotice(
 ): string {
   return page(
     shell,
-    `${title} · PocoLobby`,
+    `${title} on PocoLobby`,
     // A dead end: one agent, what happened, and the way back.
     `<div class="card">${emptyState('mouse-empty', escape(title), escape(text), link ? `<a class="btn primary" href="${escape(link.href)}">${escape(link.label)}</a>` : '')}</div>`,
   );
@@ -324,7 +324,7 @@ export function renderSignIn(
   if (options.missing.length)
     return page(
       shell,
-      'Sign in · PocoLobby',
+      'Sign in to PocoLobby',
       `${head('Sign in to PocoLobby', purpose)}<div class="card pad signin"><p>Sign-in is not configured on this server yet: ${escape(options.missing.join(' and '))} ${options.missing.length === 1 ? 'is' : 'are'} not set. Agents are not affected.</p></div>`,
     );
   const board = options.board
@@ -332,7 +332,7 @@ export function renderSignIn(
     : '';
   return page(
     shell,
-    'Sign in · PocoLobby',
+    'Sign in to PocoLobby',
     `${head('Sign in to PocoLobby', purpose)}
 <div class="card pad signin">
 <div class="welcome">${mascot('poco-bell', 'welcome-agent', 72)}<p><b>Welcome to the lobby</b>Poco, at the front desk, sends your code.</p></div>
@@ -381,7 +381,7 @@ ${status}
     ? data.owned
         .map(
           (lobby) =>
-            `<article class="card pad room"><header><h2>${escape(lobby.display_name || lobby.lobby_id)}</h2><span class="chip ${lobby.agents ? 'c-ok' : 'c-off'}">${plural(lobby.agents, 'agent')} · ${plural(lobby.rooms, 'room')}</span></header><div class="members">${escape(data.address(lobby.lobby_id))} · ${lobby.visibility} board · created ${escape(date(lobby.created_at))}</div><div class="row-actions"><a class="btn" href="/console/${escape(lobby.lobby_id)}">Open</a></div></article>`,
+            `<article class="card pad room"><header><h2>${escape(lobby.display_name || lobby.lobby_id)}</h2><span class="chip ${lobby.agents ? 'c-ok' : 'c-off'}">${plural(lobby.agents, 'agent')} and ${plural(lobby.rooms, 'room')}</span></header><div class="members">${escape(data.address(lobby.lobby_id))}, ${lobby.visibility} board, created ${escape(date(lobby.created_at))}</div><div class="row-actions"><a class="btn" href="/console/${escape(lobby.lobby_id)}">Open</a></div></article>`,
         )
         .join('')
     : `<div class="card">${emptyState('gonk-server', 'No lobbies yet', data.mayCreate ? 'Create one above. Each lobby gets its own agents, rooms and board.' : 'The server operator lets you create lobbies; ask them, or open a board shared with you.')}</div>`;
@@ -395,7 +395,7 @@ ${status}
     : '';
   return page(
     shell,
-    'Your lobbies · PocoLobby',
+    'Your lobbies on PocoLobby',
     `${head('Your lobbies', 'Lobbies you own. Each one has its own agents, rooms and board.')}<div class="stack">${create}${owned}${viewing}</div>`,
   );
 }
@@ -432,13 +432,13 @@ export function renderOverview(shell: Shell, data: OverviewData): string {
     : `<div class="card">${emptyState('mouse-envelope', 'No agents yet', `The server operator admits each agent with <span class="mono">pocolobby agent add NAME --lobby ${escape(lobby.id)}</span> and hands it its credential; it shows here once it connects.`)}</div>`;
   return page(
     shell,
-    `${lobby.name} · PocoLobby console`,
+    `${lobby.name} in the PocoLobby console`,
     `${head(lobby.id, `${plural(enabled.length, 'agent')}, ${plural(data.rooms.length, 'room')}, one board.`)}
 ${empty}
 <div class="health">
 <div class="card"><h3>Repositories</h3>${repoChip}<p>${data.rooms.length ? `${read} of ${plural(connected, 'source')} read${failing.length ? `; ${escape(failing.map((source) => source.room_id).join(', '))} failing` : ''}.` : 'Add rooms, then pick a repository for each.'}</p></div>
 <div class="card"><h3>Summaries</h3>${summaryChip}<p>${escape(MODEL_NAMES[data.config.summary_model])}, ${data.config.summary_effort} reasoning.${data.last ? ` Last run ${escape(time(data.last.created_at))}.` : ''}</p></div>
-<div class="card"><h3>Board</h3><span class="chip ${data.config.visibility === 'public' ? 'c-warn' : 'c-ok'}">${data.config.visibility === 'public' ? 'Public' : 'Private'}</span><p>${escape(lobby.address)} · ${plural(data.viewers, 'viewer')} · ${plural(data.sessions, 'session')} open</p></div>
+<div class="card"><h3>Board</h3><span class="chip ${data.config.visibility === 'public' ? 'c-warn' : 'c-ok'}">${data.config.visibility === 'public' ? 'Public' : 'Private'}</span><p>${escape(lobby.address)}, ${plural(data.viewers, 'viewer')} and ${plural(data.sessions, 'session')} open</p></div>
 </div>`,
   );
 }
@@ -464,7 +464,7 @@ export function renderRooms(shell: Shell, data: RoomsData): string {
 <div class="row-actions"><button class="btn primary" type="submit">Create room</button></div>
 ${status}
 </form></details>`;
-  const github = `<div class="card pad"><div class="keyline"><strong>GitHub</strong><span class="muted">${data.github ? 'read-only token on the server' : 'no token on the server: notes are not read'} · ${plural(data.repos.length, 'repository', 'repositories')} approved for this lobby</span><button class="btn" disabled title="For customer lobbies, later">Connect GitHub</button></div>${data.repos.length ? '' : '<p class="hint">The server operator approves repositories for a lobby (pocolobby console repos).</p>'}</div>`;
+  const github = `<div class="card pad"><div class="keyline"><strong>GitHub</strong><span class="muted">${data.github ? 'read-only token on the server' : 'no token on the server: notes are not read'}, ${plural(data.repos.length, 'repository', 'repositories')} approved for this lobby</span><button class="btn" disabled title="For customer lobbies, later">Connect GitHub</button></div>${data.repos.length ? '' : '<p class="hint">The server operator approves repositories for a lobby (pocolobby console repos).</p>'}</div>`;
   const repoOptions = (selected: string | null) =>
     data.repos
       .map(
@@ -481,7 +481,7 @@ ${status}
       : row?.error
         ? `<span class="chip c-crit">Failing</span>`
         : snapshot
-          ? `<span class="chip c-ok">Read ${escape(row?.fetched ?? '')} ago · ${escape(snapshot.commit_sha.slice(0, 7))}</span>`
+          ? `<span class="chip c-ok">Read ${escape(row?.fetched ?? '')} ago at ${escape(snapshot.commit_sha.slice(0, 7))}</span>`
           : '<span class="chip c-warn">Not read yet</span>';
     const member = (id: string) =>
       `<span class="member">${escape(id)}<form data-action="${base}/${encodeURIComponent(room.room_id)}/members"><input type="hidden" name="remove" value="${escape(id)}"><button type="submit" aria-label="Remove ${escape(id)} from ${escape(room.room_id)}" title="Remove from room">×</button></form></span>`;
@@ -525,7 +525,7 @@ ${status}
     : '';
   return page(
     shell,
-    `Rooms and repos · ${shell.lobby!.name}`,
+    `Rooms and repos for ${shell.lobby!.name}`,
     `${head('Rooms and repos', 'Each room follows one repository, at one or more paths. The board reads them for what each agent does now and next.')}<div class="stack">${add}${github}${cards.join('') || `<div class="card">${emptyState('mouse-empty', 'No rooms yet', 'Add one above. A room follows one repository, and its agents talk there.')}</div>`}${archived ? `<h2 class="subhead">Archived rooms</h2>${archived}` : ''}</div>`,
   );
 }
@@ -546,11 +546,11 @@ export interface SummariesData {
 const PRICE: Record<string, { text: string; price: string }> = {
   'claude-haiku-5-5': {
     text: 'Recommended. Fast and enough for summaries.',
-    price: '$0.10 in · $0.50 out per million tokens',
+    price: '$0.10 in and $0.50 out per million tokens',
   },
   'claude-sonnet-5-5': {
     text: 'Better judgment on messy notes.',
-    price: '$2 in · $10 out per million tokens',
+    price: '$2 in and $10 out per million tokens',
   },
 };
 const tokens = (count: number) =>
@@ -577,7 +577,7 @@ export function renderSummaries(shell: Shell, data: SummariesData): string {
     : '<p class="hint">No summary yet. One is written once the notes have been read.</p>';
   return page(
     shell,
-    `AI summaries · ${shell.lobby!.name}`,
+    `AI summaries for ${shell.lobby!.name}`,
     `${head('AI summaries', 'A small model reads the rooms’ notes and the agents’ reports and writes what each agent does now and next. It only runs when something changed, at most every 10 minutes.')}
 <div class="stack"><div class="card pad">
 <form class="stack" data-action="${base}" data-busy="Saving…" data-stay>
@@ -625,7 +625,7 @@ export function renderBoardAccess(shell: Shell, data: BoardAccessData): string {
     : '<p class="hint">No viewers. Only you open this board while it is private.</p>';
   return page(
     shell,
-    `Board access · ${lobby.name}`,
+    `Board access for ${lobby.name}`,
     `${head('Board access', 'Who can open this lobby’s board.')}
 <div class="stack"><div class="card pad">
 <div class="group"><span class="label">Address</span><div class="addr"><code>${escape(lobby.address)}</code><button class="btn" type="button" data-copy="${escape(lobby.url)}">Copy</button><a class="btn" href="/console/open/${escape(lobby.id)}">Open</a></div></div>
@@ -674,11 +674,11 @@ export function renderAgents(
       const status = agent.last_message_at
         ? `<div class="files-line">last message ${escape(time(agent.last_message_at))}</div>`
         : '';
-      return `<li><span class="main"><span class="avatar" aria-hidden="true">${escape(look?.emoji ?? agent.agent_id[0]!.toUpperCase())}</span><strong>${escape(look?.name ?? agent.agent_id)}</strong> <span class="muted">${agent.manage_rooms ? 'coordinator · ' : ''}${escape(rooms.join(', ') || 'no rooms')}${look?.hidden ? ' · not on the board' : ''}</span>${status}</span>${chip}</li>`;
+      return `<li><span class="main"><span class="avatar" aria-hidden="true">${escape(look?.emoji ?? agent.agent_id[0]!.toUpperCase())}</span><strong>${escape(look?.name ?? agent.agent_id)}</strong> <span class="muted">${agent.manage_rooms ? 'coordinator, ' : ''}${escape(rooms.join(', ') || 'no rooms')}${look?.hidden ? ', not on the board' : ''}</span>${status}</span>${chip}</li>`;
     });
   return page(
     shell,
-    `Agents · ${shell.lobby!.name}`,
+    `Agents in ${shell.lobby!.name}`,
     `${head('Agents', 'Admitting agents and their credentials stays with the server operator’s CLI. This is the read-only view; a connected bridge does not mean the agent is free.', '<button class="btn" disabled>Admit agent</button>')}<div class="card">${rows.length ? `<ul class="rows">${rows.join('')}</ul>` : emptyState('mouse-envelope', 'No agents yet', `The server operator admits each agent with <span class="mono">pocolobby agent add NAME --lobby ${escape(lobby)}</span>.`)}</div>`,
   );
 }
@@ -759,11 +759,11 @@ export function renderActivity(shell: Shell, data: { events: ActivityEvent[] }):
     const actor = event.actor_kind === 'operator' ? 'The operator' : (event.actor ?? 'someone');
     const via =
       event.actor_kind === 'agent' ? 'API' : event.actor_kind === 'account' ? 'Console' : 'CLI';
-    return `<li><span class="main"><strong>${escape(actor)}</strong> ${escape(describe(event))} <span class="muted">· ${escape(time(event.at))}</span></span><span class="chip c-off">${via}</span></li>`;
+    return `<li><span class="main"><strong>${escape(actor)}</strong> ${escape(describe(event))} <span class="muted">${escape(time(event.at))}</span></span><span class="chip c-off">${via}</span></li>`;
   });
   return page(
     shell,
-    `Activity · ${shell.lobby!.name}`,
+    `Activity in ${shell.lobby!.name}`,
     `${head('Activity', 'Every change to the lobby, its rooms and its settings, and who made it: you in the console, agents through the API, and the operator through the CLI.')}<div class="card">${rows.length ? `<ul class="rows">${rows.join('')}</ul>` : emptyState('luke-sleep', 'Nothing has happened yet', 'Changes to the lobby, its rooms and its settings show up here, with who made them.')}</div>`,
   );
 }
@@ -775,10 +775,10 @@ export function renderSettings(
   const lobby = shell.lobby!;
   return page(
     shell,
-    `Lobby settings · ${lobby.name}`,
+    `Lobby settings for ${lobby.name}`,
     `${head('Lobby settings', 'The lobby itself. Only its owner can change these.')}
 <div class="card pad">
-<div class="group"><span class="label">Name and address</span><div class="addr"><code>${escape(lobby.id)}</code><span class="muted">${escape(lobby.address)} · created ${escape(date(data.created))}</span></div><p class="hint">A lobby’s name cannot change: agents’ credentials and the board address depend on it.</p></div>
+<div class="group"><span class="label">Name and address</span><div class="addr"><code>${escape(lobby.id)}</code><span class="muted">${escape(lobby.address)}, created ${escape(date(data.created))}</span></div><p class="hint">A lobby’s name cannot change: agents’ credentials and the board address depend on it.</p></div>
 <form class="group" data-action="/console/api/l/${encodeURIComponent(lobby.id)}/display-name" data-busy="Saving…">
 <span class="label">Display name</span>
 <p class="hint">How the board and this console show the lobby, with capitals and spaces if you like, such as My Team for my-team. Leave it empty to show its name.</p>

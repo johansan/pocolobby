@@ -10,8 +10,8 @@ import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { LobbyClient, type LobbyClientConfig } from './client.js';
-import { UsageReportSchema, type UsageReport } from './protocol.js';
+import { LobbyClient, LobbyClientError, type LobbyClientConfig } from './client.js';
+import { Effort, ModelId, UsageReportSchema, type UsageReport } from './protocol.js';
 
 /** An unchanged reading is sent again this often, so a restarted broker has it back soon. */
 export const USAGE_RESEND_MS = 5 * 60_000;
@@ -43,9 +43,19 @@ export interface StatusLineOptions {
   dryRun?: boolean;
 }
 
-/** The plan usage in Claude Code's status line input, as the broker accepts it. */
+/**
+ * The plan usage, model and effort in Claude Code's status line input, as the broker accepts them.
+ * A model or effort the broker would refuse is left out on its own, never the usage with it.
+ */
 export function usageReport(input: unknown, account: Account | null): UsageReport | null {
-  const limits = (input as { rate_limits?: Record<string, unknown> } | null)?.rate_limits;
+  const data = (input ?? {}) as {
+    rate_limits?: Record<string, unknown>;
+    model?: { id?: unknown };
+    effort?: { level?: unknown };
+  };
+  const limits = data.rate_limits;
+  const model = ModelId.safeParse(data.model?.id);
+  const effort = Effort.safeParse(data.effort?.level);
   const window = (value: unknown) => {
     const { used_percentage, resets_at } = (value ?? {}) as Record<string, unknown>;
     return typeof used_percentage === 'number' && typeof resets_at === 'number'
@@ -60,13 +70,18 @@ export function usageReport(input: unknown, account: Account | null): UsageRepor
     seven_day: window(limits?.seven_day),
     account: account?.email,
     plan: account?.plan,
+    model: model.success ? model.data : undefined,
+    effort: effort.success ? effort.data : undefined,
   });
   if (!parsed.success) return null;
-  const report = parsed.data;
-  return report.five_hour || report.seven_day ? report : null;
+  // Only the fields the input had, so a reading compares by what it says.
+  const report = Object.fromEntries(
+    Object.entries(parsed.data).filter(([, value]) => value !== undefined),
+  ) as UsageReport;
+  return report.five_hour || report.seven_day || report.model ? report : null;
 }
 
-/** What the status line shows: "5h 62% left, resets 18:40 · week 40% left". */
+/** What the status line shows: "5h 62% left, resets 18:40, week 40% left". */
 export function statusText(report: UsageReport | null): string {
   if (!report) return '';
   const left = (used: number) => `${Math.max(0, Math.round(100 - used))}% left`;
@@ -77,7 +92,7 @@ export function statusText(report: UsageReport | null): string {
     parts.push(`5h ${left(report.five_hour.used_percentage)}, resets ${time}`);
   }
   if (report.seven_day) parts.push(`week ${left(report.seven_day.used_percentage)}`);
-  return parts.join(' · ');
+  return parts.join(', ');
 }
 
 /** The account this session runs on, as `claude auth status --json` reports it. */
@@ -136,7 +151,7 @@ export async function runStatusLine(
   }
   if (usageReport(input, null) === null)
     return options.dryRun
-      ? 'Dry run: this input has no rate_limits, so nothing would be sent.'
+      ? 'Dry run: this input has no rate_limits and no model, so nothing would be sent.'
       : '';
   if (!state.account_at || now() - state.account_at >= ACCOUNT_MS) {
     const account = await (options.account ?? claudeAccount)();
@@ -148,12 +163,27 @@ export async function runStatusLine(
   // Nothing sent and nothing remembered: the next real reading is sent as usual.
   if (options.dryRun) return `${line}\nDry run, not sent: PUT /v1/usage ${body}`;
   if (report && (body !== state.sent || now() - (state.sent_at ?? 0) >= USAGE_RESEND_MS)) {
+    const client = options.client ?? new LobbyClient({ ...config, timeoutMs: TIMEOUT_MS });
     try {
-      const client = options.client ?? new LobbyClient({ ...config, timeoutMs: TIMEOUT_MS });
       await client.request('PUT', '/v1/usage', report);
       state = { ...state, sent: body, sent_at: now() };
-    } catch {
-      /* The next run tries again. */
+    } catch (error) {
+      // A broker older than 0.8.4 refuses model and effort; send it the usage alone, so pacing
+      // keeps working, and try the whole report again at the next resend.
+      const { model, effort, ...usage } = report;
+      if (
+        error instanceof LobbyClientError &&
+        error.status === 400 &&
+        (model || effort) &&
+        (usage.five_hour || usage.seven_day)
+      ) {
+        try {
+          await client.request('PUT', '/v1/usage', usage);
+          state = { ...state, sent: body, sent_at: now() };
+        } catch {
+          /* The next run tries again. */
+        }
+      }
     }
   }
   try {

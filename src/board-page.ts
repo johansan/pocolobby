@@ -143,7 +143,8 @@ ${EMPTY_CSS}
 .agent .active { justify-self: end; font: 500 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .agent .next { grid-column: 2 / -1; font-size: 13.5px; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
 .agent .next b { color: var(--ink); font-weight: 600; }
-.agent .usage { grid-column: 2 / -1; font-size: 12.5px; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.agent .usage { grid-column: 2 / -1; font-size: 12.5px; color: var(--muted); min-width: 0; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; column-gap: 14px; }
+.agent .who .model { font-size: 13px; color: var(--muted); font-weight: 500; }
 .agent .usage b { color: var(--ink); font-weight: 600; }
 .agent .usage .low { color: var(--crit); }
 /* 96 quarter hours, oldest first: one bar per block, taller with more messages in and out. */
@@ -308,13 +309,14 @@ function resetTime(iso: string): string {
 }
 
 /**
- * The account the agent runs on and what is left of its plan: "5h: 62% left, resets 18:40 ·
- * Week: 40% left, resets Tue 21 Oct, 09:00". Under a fifth left is marked.
+ * The account the agent runs on and what is left of its plan, each part spaced apart with no
+ * separator (Johan: no "·"): "5h 62% left resets 18:40   Week 40% left resets Tue 21 Oct,
+ * 09:00". Under a fifth left is marked.
  */
 function usageLine(usage: UsageView, now: number): string {
   const window = (label: string, value: UsageView['five_hour']) =>
     value
-      ? `${label}: <b${value.left < 20 ? ' class="low"' : ''}>${value.left}% left</b>, resets ${resetTime(value.resets_at)}`
+      ? `${label} <b${value.left < 20 ? ' class="low"' : ''}>${value.left}% left</b> resets ${resetTime(value.resets_at)}`
       : '';
   const account = usage.account
     ? `${escape(usage.account)}${usage.plan ? ` (${escape(usage.plan)})` : ''}`
@@ -326,12 +328,12 @@ function usageLine(usage: UsageView, now: number): string {
     window('Week', usage.seven_day),
     observed >= 30 * 60_000 ? `as of ${age(observed)} ago` : '',
   ].filter(Boolean);
-  return `<div class="usage">${parts.join(' · ')}</div>`;
+  return `<div class="usage">${parts.map((part) => `<span>${part}</span>`).join('')}</div>`;
 }
 
 /**
- * Each Claude account and its week against the line that spends it evenly to its reset: "63%
- * used · line 57% · resets Wed 21 Oct, 07:00 · Luke, Mouse", with how far ahead or behind it is.
+ * Each Claude account and its week against the line that spends it evenly to its reset: "Week 63%
+ * used target 57% resets Wed 21 Oct, 07:00", its agents below, with how far ahead or behind it is.
  */
 /** Points ahead of the even pace at which an account counts as far ahead, in red. */
 const FAR_AHEAD = 20;
@@ -372,7 +374,7 @@ function accountRows(view: BoardView): string {
   return `<div class="accounts">${view.accounts
     .map(
       (account) =>
-        `<div class="account"><strong title="${escape(account.account)}">${escape(account.account)}</strong>${weekBar(account)}<span class="facts">Week: <b>${account.week_used}% used</b> · target ${account.line}% · resets ${resetTime(account.week_resets_at)}${account.agents.length ? ` · ${account.agents.map(escape).join(', ')}` : ''}</span></div>`,
+        `<div class="account"><strong title="${escape(account.account)}">${escape(account.account)}</strong>${weekBar(account)}<span class="facts">Week <b>${account.week_used}% used</b> target ${account.line}% resets ${resetTime(account.week_resets_at)}</span>${account.agents.length ? `<span class="facts">${account.agents.map(escape).join(', ')}</span>` : ''}</div>`,
     )
     .join(
       '',
@@ -390,10 +392,10 @@ function agentRow(row: AgentRow, view: BoardView): string {
     row.next === null
       ? ''
       : row.next.count
-        ? `<div class="next"><b>Next:</b> ${row.next.items.map(escape).join(' · ')}${row.next.count > row.next.items.length ? ` · ${row.next.count - row.next.items.length} more` : ''}</div>`
+        ? `<div class="next"><b>Next:</b> ${row.next.items.map(escape).join(', ')}${row.next.count > row.next.items.length ? ` and ${row.next.count - row.next.items.length} more` : ''}</div>`
         : '<div class="next"><b>Next:</b> nothing queued</div>';
   const usage = row.usage ? usageLine(row.usage, Date.parse(view.generated_at)) : '';
-  return `<div class="agent">${avatar}<div class="who"><strong>${escape(row.name)}</strong><span class="chip s-${row.chip}">${CHIP_LABELS[row.chip]}</span>${offline}</div><span class="active" title="Quarter hours with messages in the last 24 hours">${row.active === 'none' ? 'no messages' : `${escape(row.active)} active`}</span><div class="now">${now}${stall}</div>${next}${usage}${strip(row, view)}</div>`;
+  return `<div class="agent">${avatar}<div class="who"><strong>${escape(row.name)}</strong>${row.usage?.model ? `<span class="model">${escape(row.usage.model)}</span>` : ''}<span class="chip s-${row.chip}">${CHIP_LABELS[row.chip]}</span>${offline}</div><span class="active" title="Quarter hours with messages in the last 24 hours">${row.active === 'none' ? 'no messages' : `${escape(row.active)} active`}</span><div class="now">${now}${stall}</div>${next}${usage}${strip(row, view)}</div>`;
 }
 
 /**
@@ -442,13 +444,13 @@ export function renderBoardBody(view: BoardView, viewer: string | null = null): 
     : 'Now and next: no summary yet.';
   const doing =
     view.activity === 'summarizing'
-      ? ' · <b>writing now and next…</b>'
+      ? ' <b>Writing now and next…</b>'
       : view.activity === 'checking'
-        ? ' · checking the notes…'
+        ? ' Checking the notes…'
         : '';
   const stamp = view.summary
-    ? `Live · now and next <b>${escape(view.summary.written)}</b> ago${doing}`
-    : `Live · no summary yet${doing}`;
+    ? `Live. Now and next written <b>${escape(view.summary.written)}</b> ago.${doing}`
+    : `Live. No summary yet.${doing}`;
   return `<header class="lobby"><h1>${escape(view.display_name || view.lobby_id)} <small>pocolobby</small></h1><div class="stamp">${stamp}</div></header>
 <section aria-label="Board">
 ${notices}
@@ -470,7 +472,7 @@ export function renderBoardPage(
   icon: string | null = null,
 ): string {
   return page(
-    `${view.display_name || view.lobby_id} · PocoLobby`,
+    `${view.display_name || view.lobby_id} on PocoLobby`,
     nonce,
     `${bar}\n<main class="wrap" id="board"${view.activity ? ` data-activity="${view.activity}"` : ''}>${renderBoardBody(view, viewer)}</main>`,
     true,
@@ -489,7 +491,7 @@ export function renderBoardNotice(
   signIn: string,
 ): string {
   return page(
-    `${label} · PocoLobby`,
+    `${label} on PocoLobby`,
     nonce,
     `<main class="wrap login"><header class="lobby"><h1>${escape(label)} <small>pocolobby</small></h1></header>
 <div class="panel">${emptyState('vader-point', 'Sign in to see this board', escape(text), `<a class="button" href="${escape(signIn)}">Sign in with your email</a>`)}</div></main>`,

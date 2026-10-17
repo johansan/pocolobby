@@ -1,6 +1,6 @@
 {
   "name": "pocolobby",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "Claude Code agents that keep each other in sync: a small self-hosted message broker and a Claude Code channel bridge.",
   "keywords": [
     "claude",

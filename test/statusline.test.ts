@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test, type TestContext } from 'node:test';
+import { LobbyClientError } from '../src/client.js';
 import { runStatusLine, statusText, usageReport, USAGE_RESEND_MS } from '../src/statusline.js';
 
 // What Claude Code passes a status line for a Pro or Max account, abridged.
@@ -64,7 +65,7 @@ test('the status line reads Claude Code’s plan usage and the signed-in account
     account: 'johan@example.com',
     plan: 'max',
   });
-  assert.match(statusText(report), /^5h 62% left, resets \d\d:\d\d · week 40% left$/);
+  assert.match(statusText(report), /^5h 62% left, resets \d\d:\d\d, week 40% left$/);
   // An API-key session, or one before its first answer, has no rate_limits: nothing to show.
   assert.equal(usageReport({ model: {} }, null), null);
   assert.equal(statusText(null), '');
@@ -103,13 +104,81 @@ test('a dry run shows what would be sent, sends nothing and remembers nothing', 
   const shown = await f.run(input(38.4, 60), true);
   assert.match(
     shown,
-    /^5h 62% left, resets \d\d:\d\d · week 40% left\nDry run, not sent: PUT \/v1\/usage \{/,
+    /^5h 62% left, resets \d\d:\d\d, week 40% left\nDry run, not sent: PUT \/v1\/usage \{/,
   );
   assert.match(shown, /"account":"johan@example.com"/);
   assert.deepEqual(f.sent, []);
   await assert.rejects(readFile(f.statePath, 'utf8'));
-  assert.match(await f.run('{}', true), /no rate_limits, so nothing would be sent/);
+  assert.match(await f.run('{}', true), /no rate_limits and no model, so nothing would be sent/);
   // The next real reading is sent as usual.
   await f.run(input(38.4, 60));
   assert.equal(f.sent.length, 1);
+});
+
+test('the status line reports the session’s model and effort, and leaves out a value the broker would refuse', () => {
+  const session = (model: unknown, effort: unknown) => ({
+    ...JSON.parse(input(38.4, 60)),
+    model,
+    effort,
+  });
+  assert.deepEqual(
+    usageReport(session({ id: 'claude-opus-5-5', display_name: 'Opus' }, { level: 'xhigh' }), null),
+    {
+      five_hour: { used_percentage: 38.4, resets_at: 1_792_000_000 },
+      seven_day: { used_percentage: 60, resets_at: 1_792_400_000 },
+      model: 'claude-opus-5-5',
+      effort: 'xhigh',
+    },
+  );
+  // An effort it does not know, or a model ID with a space, is dropped; the usage stays.
+  const odd = usageReport(session({ id: 'claude opus' }, { level: 'turbo' }), null)!;
+  assert.deepEqual(
+    [odd.model, odd.effort, odd.seven_day?.used_percentage],
+    [undefined, undefined, 60],
+  );
+  // A session without plan windows, such as one on an API key, still reports its model.
+  assert.deepEqual(usageReport({ model: { id: 'claude-sonnet-5-5' } }, null), {
+    model: 'claude-sonnet-5-5',
+  });
+});
+
+test('a broker before 0.8.4 gets the usage alone, and the whole report again at the next resend', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'pocolobby-statusline-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  let now = Date.parse('2026-10-16T18:00:00Z');
+  const sent: Record<string, unknown>[] = [];
+  let tries = 0;
+  const options = {
+    now: () => now,
+    statePath: join(directory, 'state.json'),
+    account: async () => null,
+    client: {
+      request: async (_method: string, _path: string, body?: unknown) => {
+        tries++;
+        // A 0.8.3 broker's schema refuses the keys it does not know.
+        if (body && typeof body === 'object' && 'model' in body)
+          throw new LobbyClientError(400, 'invalid_request');
+        sent.push(body as Record<string, unknown>);
+        return { recorded: true };
+      },
+    } as never,
+  };
+  const stdin = JSON.stringify({
+    ...JSON.parse(input(10, 20)),
+    model: { id: 'claude-opus-5-5' },
+    effort: { level: 'high' },
+  });
+  const run = () =>
+    runStatusLine({ url: 'https://lobby.test', token: 'x' }, '/agent.json', stdin, options);
+  await run();
+  assert.deepEqual(
+    [tries, sent.length, 'model' in sent[0]!, Boolean(sent[0]!.seven_day)],
+    [2, 1, false, true],
+  );
+  // The same reading is not sent again before the resend interval.
+  await run();
+  assert.equal(tries, 2);
+  now += USAGE_RESEND_MS;
+  await run();
+  assert.deepEqual([tries, sent.length], [4, 2]);
 });

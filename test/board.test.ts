@@ -14,6 +14,7 @@ import {
   stateChip,
   STALL_MS,
   USAGE_SHOWN_MS,
+  modelLabel,
   type BoardSettings,
 } from '../src/board.js';
 import { SummarySchema, type NotesSource } from '../src/board-model.js';
@@ -1267,17 +1268,18 @@ test('each agent row shows its plan usage, the account only on a private board',
     plan: 'max',
     five_hour: { left: 62, resets_at: '2026-10-16T19:40:00.000Z' },
     seven_day: { left: 15, resets_at: '2026-10-21T07:00:00.000Z' },
+    model: null,
     observed_at: '2026-10-16T18:00:00.000Z',
   });
   assert.equal(board.view(LOBBY).agents.find((agent) => agent.agent_id === 'mouse')!.usage, null);
   const html = renderBoardBody(board.view(LOBBY));
   assert.match(
     html,
-    /johan@example\.com \(max\) · 5h: <b>62% left<\/b>, resets <time datetime="2026-10-16T19:40:00.000Z" data-at>Fri 16 Oct, 19:40 UTC<\/time>/,
+    /<span>johan@example\.com \(max\)<\/span><span>5h <b>62% left<\/b> resets <time datetime="2026-10-16T19:40:00.000Z" data-at>Fri 16 Oct, 19:40 UTC<\/time><\/span>/,
   );
   assert.match(
     html,
-    /Week: <b class="low">15% left<\/b>, resets <time datetime="2026-10-21T07:00:00.000Z" data-at>Wed 21 Oct, 07:00 UTC<\/time>/,
+    /Week <b class="low">15% left<\/b> resets <time datetime="2026-10-21T07:00:00.000Z" data-at>Wed 21 Oct, 07:00 UTC<\/time>/,
   );
   // A public board shows the usage without the address.
   store.setBoardVisibility('owner', LOBBY, 'public');
@@ -1289,6 +1291,26 @@ test('each agent row shows its plan usage, the account only on a private board',
   assert.match(renderBoardBody(board.view(LOBBY)), /as of 2 h ago/);
   now = Date.parse('2026-10-16T18:00:00Z') + USAGE_SHOWN_MS;
   assert.equal(row().usage, null);
+  // Johan: "it could list Gonk (Opus 5.5 xhigh)". The model and effort follow the agent's name,
+  // from its own session, and a reading with only them still shows.
+  board.recordUsage('my-team/leia', { model: 'claude-opus-5-5', effort: 'xhigh' });
+  assert.equal(row().usage!.model, 'Opus 5.5 xhigh');
+  assert.match(
+    renderBoardBody(board.view(LOBBY)),
+    /<strong>Leia<\/strong><span class="model">Opus 5\.5 xhigh<\/span>/,
+  );
+  const usage = board.agentUsage(LOBBY, 'leia')!;
+  assert.deepEqual(
+    [usage.model, usage.model_name, usage.effort],
+    ['claude-opus-5-5', 'Opus 5.5', 'xhigh'],
+  );
+  board.recordUsage('my-team/leia', { model: 'claude-sonnet-5-5' });
+  assert.equal(row().usage!.model, 'Sonnet 5.5');
+  assert.equal(board.agentUsage(LOBBY, 'leia')!.effort, null);
+  assert.equal(modelLabel('claude-opus-4-6[1m]'), 'Opus 4.6 1M');
+  assert.equal(modelLabel('claude-haiku-4-5-20251001'), 'Haiku 4.5');
+  assert.equal(modelLabel('claude-fable-5-1'), 'Fable 5.1');
+  assert.equal(modelLabel('some-other-model'), 'some-other-model');
 });
 
 test('accounts are paced against their weekly line, for the coordinator and the board', (t) => {
@@ -1333,7 +1355,7 @@ test('accounts are paced against their weekly line, for the coordinator and the 
     html,
     /aria-label="Week 50% used, 7 points behind">.*?class="behind" x="50" y="3" width="7"/s,
   );
-  assert.match(html, /Week: <b>65% used<\/b> · target 57% · resets <time/);
+  assert.match(html, /Week <b>65% used<\/b> target 57% resets <time/);
   // list_agents carries the same, for the coordinator's checks.
   assert.deepEqual(board.agentUsage(LOBBY, 'padme')!.seven_day, {
     used_percentage: 50,

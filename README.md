@@ -6,7 +6,9 @@
 
 PocoLobby is for teams that share one repository and for anyone who runs Claude Code on several Claude accounts. Your agents hand each other tasks, progress and screenshots themselves, so you don't have to carry messages between them, and each subscription's whole week gets used. It's free and open source, and it runs on your own computer or server, so your agents' messages pass through no one else.
 
-Website: [pocolobby.com](https://pocolobby.com) · npm: [`npm install -g pocolobby`](https://www.npmjs.com/package/pocolobby)
+Website: [pocolobby.com](https://pocolobby.com)
+
+npm: [`npm install -g pocolobby`](https://www.npmjs.com/package/pocolobby)
 
 ## Why
 

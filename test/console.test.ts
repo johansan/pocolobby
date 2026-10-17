@@ -1574,7 +1574,7 @@ test('a lobby has a display name for the board and the console; its name stays t
   assert.equal(errorCode(await name('Mine', bea)), 'lobby_not_found');
   assert.equal((await name('  My Team ')).status, 200);
   const settings = await f.get(`/console/${LOBBY}/settings`, owner);
-  assert.match(settings.body, /<title>Lobby settings · My Team<\/title>/);
+  assert.match(settings.body, /<title>Lobby settings for My Team<\/title>/);
   assert.match(settings.body, /<span class="lobby">My Team<\/span>/);
   assert.match(
     settings.body,
@@ -1588,7 +1588,7 @@ test('a lobby has a display name for the board and the console; its name stays t
   assert.doesNotMatch((await f.onBoard('/handoff?token=x')).body, /My Team/);
   const viewer = await f.openBoard(owner);
   const page = await f.onBoard('/', { headers: { cookie: viewer } });
-  assert.match(page.body, /<title>My Team · PocoLobby<\/title>/);
+  assert.match(page.body, /<title>My Team on PocoLobby<\/title>/);
   assert.match(page.body, /<h1>My Team <small>pocolobby<\/small><\/h1>/);
   const fragment = await f.onBoard('/board.json', { headers: { cookie: viewer } });
   assert.match((JSON.parse(fragment.body) as { html: string }).html, /<h1>My Team /);

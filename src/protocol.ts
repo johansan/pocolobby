@@ -391,6 +391,12 @@ const UsageWindow = z
  * the five-hour and weekly windows, and the account it is signed in to. The broker keeps only the
  * latest, in memory, for the board.
  */
+/** A Claude model ID, such as claude-opus-5-5 or claude-opus-4-6[1m]. */
+export const ModelId = z
+  .string()
+  .max(80)
+  .regex(/^[\w.[\]-]+$/u);
+export const Effort = z.enum(['low', 'medium', 'high', 'xhigh', 'max']);
 export const UsageReportSchema = z
   .object({
     five_hour: UsageWindow.optional(),
@@ -401,6 +407,9 @@ export const UsageReportSchema = z
       .max(40)
       .regex(/^[\w .-]*$/u)
       .optional(),
+    // The session's model and reasoning effort, as Claude Code gives them to the status line (0.8.4).
+    model: ModelId.optional(),
+    effort: Effort.optional(),
   })
   .strict();
 export type UsageReport = z.infer<typeof UsageReportSchema>;
@@ -413,7 +422,7 @@ export type UsageReport = z.infer<typeof UsageReportSchema>;
 export const EVENT_VERSION = 5;
 export const EVENT_VERSION_HEADER = 'x-pocolobby-event-version';
 /** The package release; the adapter reports it as its MCP server version. */
-export const PACKAGE_VERSION = '0.8.3';
+export const PACKAGE_VERSION = '0.8.4';
 /** Extension data: keys in this form, at most this many, and this much JSON per object. */
 export const ExtensionKey = z.string().regex(/^[a-z][a-z0-9_]{0,63}$/);
 export const MAX_EXTENSION_KEYS = 32;

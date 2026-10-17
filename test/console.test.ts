@@ -421,7 +421,9 @@ test('owner A can neither read nor change lobby B through any console route or f
   ]) {
     const page = await f.get(`/console/tokentek${section}`, johan);
     assert.equal(page.status, 404, section);
-    assert.doesNotMatch(page.body, /design|rey|bea@example\.com/, section);
+    // The page's random nonce could spell one of these names; its content cannot.
+    const content = page.body.replace(/nonce="[^"]*"/gu, '');
+    assert.doesNotMatch(content, /design|rey|bea@example\.com/, section);
     assert.equal((await f.get(`/console/tokentek${section}`, bea)).status, 200, section);
   }
   const actions: [string, unknown][] = [

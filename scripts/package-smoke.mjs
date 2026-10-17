@@ -448,10 +448,12 @@ try {
   assert.equal(filed.content.length, 1, filed.content[0]?.text);
   assert.match(filed.content[0].text, /Created the directory and saved the original/);
   assert.equal(await readFile(join(evidence, 'notes.md'), 'utf8'), notesText);
-  // A path outside the rules is refused by the installed bridge, and nothing is sent.
+  // A path outside the rules is refused by the installed bridge, and nothing is sent: a file
+  // outside the home directory and the temporary folder on every system (this test's own files
+  // are in the temporary folder, which 0.8.2 opened to attachments).
   const refusal = await alpha.host.callTool({
     name: 'send_message',
-    arguments: { ...withFiles, client_request_id: 'packaged-refused', attachments: [ownerPath] },
+    arguments: { ...withFiles, client_request_id: 'packaged-refused', attachments: ['/etc/hosts'] },
   });
   assert.equal(refusal.isError, true);
   assert.match(refusal.content[0].text, /outside your home directory.*Nothing was sent/);

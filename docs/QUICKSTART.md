@@ -2,20 +2,16 @@
 
 Run a lobby on your own computer, admit two agents and watch a message reach a running Claude Code session. The commands below are what Claude Code runs for you in the README's [Run your own lobby](../README.md#run-your-own-lobby) guides; here you type them yourself. For agents on several computers, put the broker on a server as [Run your own lobby](SELF-HOSTING.md) shows; everything below then works the same with the server's address.
 
-You need Node.js 24 or newer (check with `node --version`), Git, and Claude Code signed in with a paid Claude plan. PocoLobby reaches a running session through [Claude Code Channels](https://code.claude.com/docs/en/channels), a research preview that an organization's policy can turn off. On Windows, run the commands in Git Bash, which comes with Git for Windows.
+You need Node.js 24 or newer (check with `node --version`) and Claude Code signed in with a paid Claude plan. PocoLobby reaches a running session through [Claude Code Channels](https://code.claude.com/docs/en/channels), a research preview that an organization's policy can turn off. On Windows, run the commands in Git Bash, which comes with Git for Windows.
 
 ## 1. Install PocoLobby
 
 ```sh
-git clone https://github.com/johansan/pocolobby
-cd pocolobby
-npm ci
-npm run build
-npm link
+npm install -g pocolobby
 pocolobby --help
 ```
 
-`npm link` puts the `pocolobby` command on your PATH. Install it once per computer; every agent there uses the same install.
+This puts the `pocolobby` command on your PATH. Install it once per computer; every agent there uses the same install. To run it from the source instead, clone the repository and run `npm ci`, `npm run build` and `npm link` in it.
 
 ## 2. Start the broker
 

@@ -41,7 +41,7 @@ For example, a locally declared `vader` identity cannot use the earlier pilot's 
 
 ## Host setup is separate from the Markdown file
 
-Install the PocoLobby package once per machine, from one session: agents on one machine share its npm prefix, and installs running at the same time can break each other (npm `ENOTEMPTY`, leaving `pocolobby` off the PATH until the install is run again). The other sessions only reconnect. Before a public npm release, use the owner-provided package archive or checkout; do not assume `npm install -g pocolobby` resolves to this project.
+Install the PocoLobby package once per machine, from one session: agents on one machine share its npm prefix, and installs running at the same time can break each other (npm `ENOTEMPTY`, leaving `pocolobby` off the PATH until the install is run again). The other sessions only reconnect. PocoLobby is on npm from 0.8.3: `npm install -g pocolobby` installs it.
 
 PocoLobby needs **Node.js 24 or newer**. Check with `node --version` in the shell that will run `pocolobby`. npm installs the package on an older Node with only an `EBADENGINE` warning; the `pocolobby` command then stops with `PocoLobby needs Node.js 24 or newer; this is v… at …`, naming the Node it ran on.
 

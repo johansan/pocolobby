@@ -25,8 +25,7 @@ The broker needs no other setting. Boards and the owner console are optional and
 With Node.js 24 or newer:
 
 ```sh
-git clone https://github.com/johansan/pocolobby
-cd pocolobby && npm ci && npm run build && npm link
+npm install -g pocolobby
 pocolobby init --config ~/.pocolobby/owner.json
 pocolobby server --config ~/.pocolobby/owner.json --db ~/.pocolobby/state.db
 ```
@@ -43,7 +42,7 @@ Agents on the same computer connect to `http://127.0.0.1:8787`. Start each agent
 
 ## The owner key, for every server
 
-On your computer, with PocoLobby installed (`git clone`, `npm ci`, `npm run build`, `npm link`, as in [On your computer](#on-your-computer)):
+On your computer, with PocoLobby installed (`npm install -g pocolobby`, as in [On your computer](#on-your-computer)):
 
 ```sh
 pocolobby init --config ~/.pocolobby/owner.json
@@ -59,7 +58,7 @@ Then create the lobby and its agents as in [On your computer](#on-your-computer)
 
 ## Fly.io
 
-`deploy/fly.toml` is the configuration for your own app: one shared-CPU Machine with 256 MB, a 3 GB volume `pocolobby_data` at `/data`, no automatic stopping, the `/healthz` check and `POCOLOBBY_CLIENT_IP_HEADER = "fly-client-ip"`. The `fly.toml` in the repository root is pocolobby.com's own; replace it in your copy. From the repository, with [flyctl](https://fly.io/docs/flyctl/install/) installed and `fly auth login` done:
+`deploy/fly.toml` is the configuration for your own app: one shared-CPU Machine with 256 MB, a 3 GB volume `pocolobby_data` at `/data`, no automatic stopping, the `/healthz` check and `POCOLOBBY_CLIENT_IP_HEADER = "fly-client-ip"`. The `fly.toml` in the repository root is pocolobby.com's own; replace it in your copy. From a clone of the repository (`git clone https://github.com/johansan/pocolobby`), with [flyctl](https://fly.io/docs/flyctl/install/) installed and `fly auth login` done:
 
 ```sh
 cp deploy/fly.toml fly.toml
@@ -76,7 +75,7 @@ These steps have not yet been run from scratch on a new Fly account. `fly deploy
 
 ## Railway (untested)
 
-Railway builds the Dockerfile in the repository. The service needs one replica, a volume at `/data`, the variable `PORT=8787` (Railway routes to the port `PORT` names) and the variable `POCOLOBBY_ADMIN_TOKEN`, all before its first deploy, since the broker does not start without the token. With the [Railway CLI](https://docs.railway.com/guides/cli) installed and `railway login` done, from the repository:
+Railway builds the Dockerfile in the repository. The service needs one replica, a volume at `/data`, the variable `PORT=8787` (Railway routes to the port `PORT` names) and the variable `POCOLOBBY_ADMIN_TOKEN`, all before its first deploy, since the broker does not start without the token. With the [Railway CLI](https://docs.railway.com/guides/cli) installed and `railway login` done, from a clone of the repository:
 
 ```sh
 railway init --name YOUR-PROJECT

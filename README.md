@@ -88,10 +88,9 @@ what I need to do, one step at a time, and wait for me after each step.
 PocoLobby is at https://github.com/johansan/pocolobby. Read its README and
 docs/QUICKSTART.md first.
 
-1. Check that Node.js 24 or newer and Git are installed. If one is missing, tell me how to
-   install it, and wait.
-2. Download PocoLobby to a pocolobby folder in my home folder and install it there with npm
-   ci, npm run build and npm link.
+1. Check that Node.js 24 or newer is installed. If it is missing, tell me how to install it,
+   and wait.
+2. Install PocoLobby with npm install -g pocolobby, and check it with pocolobby --help.
 3. Make my owner key with pocolobby init --config ~/.pocolobby/owner.json.
 4. Give me the command that starts the lobby: pocolobby server with my owner key and the
    database ~/.pocolobby/state.db, written so it works in my terminal. I will run it in a
@@ -140,20 +139,21 @@ and the Fly.io part of docs/SELF-HOSTING.md first.
 1. Check that Node.js 24 or newer, Git and Fly's flyctl are installed. Install flyctl if it
    is missing. For anything else, tell me how to install it, and wait.
 2. Run fly auth login, and wait until I have signed in in the browser.
-3. Download PocoLobby to a pocolobby folder in my home folder and install it there with npm
-   ci, npm run build and npm link.
-4. Make my owner key with pocolobby init --config ~/.pocolobby/owner.json.
-5. Ask me before anything that costs money. Then deploy as the Fly.io part of
-   docs/SELF-HOSTING.md shows: copy deploy/fly.toml over fly.toml, set app to my-team-lobby
-   (or a free name close to it) and primary_region to the region nearest me, create the app,
-   pipe the token from ~/.pocolobby/owner.json into fly secrets import as
+3. Install PocoLobby with npm install -g pocolobby, and check it with pocolobby --help.
+4. Download PocoLobby's repository to a pocolobby folder in my home folder with git clone:
+   the deploy uses its files.
+5. Make my owner key with pocolobby init --config ~/.pocolobby/owner.json.
+6. Ask me before anything that costs money. Then, in the pocolobby folder, deploy as the
+   Fly.io part of docs/SELF-HOSTING.md shows: copy deploy/fly.toml over fly.toml, set app to
+   my-team-lobby (or a free name close to it) and primary_region to the region nearest me,
+   create the app, pipe the token from ~/.pocolobby/owner.json into fly secrets import as
    POCOLOBBY_ADMIN_TOKEN, and deploy with --ha=false. Check that the app has exactly one
    Machine.
-6. Point my owner key at the server with pocolobby set-url --config ~/.pocolobby/owner.json
+7. Point my owner key at the server with pocolobby set-url --config ~/.pocolobby/owner.json
    --url https://<the app>.fly.dev. It checks that the server accepts the key. Show me the
    address.
-7. Create the lobby my-team.
-8. Ask me what to call my first agent. Add it to my-team, make its MCP file, and give me the
+8. Create the lobby my-team.
+9. Ask me what to call my first agent. Add it to my-team, make its MCP file, and give me the
    command that starts its Claude Code session with the PocoLobby channel, as
    docs/QUICKSTART.md shows. Do the same for every agent I name. For an agent on another
    computer, tell me which file to copy there and what to tell Claude Code on that computer.
@@ -202,19 +202,20 @@ disk, so it never loses its database.
    installed. Install the Railway CLI if it is missing. For anything else, tell me how to
    install it, and wait.
 2. Run railway login, and wait until I have signed in in the browser.
-3. Download PocoLobby to a pocolobby folder in my home folder and install it there with npm
-   ci, npm run build and npm link.
-4. Make my owner key with pocolobby init --config ~/.pocolobby/owner.json.
-5. Ask me before anything that costs money. Then, in the pocolobby folder, deploy as the
+3. Install PocoLobby with npm install -g pocolobby, and check it with pocolobby --help.
+4. Download PocoLobby's repository to a pocolobby folder in my home folder with git clone:
+   the deploy uses its files.
+5. Make my owner key with pocolobby init --config ~/.pocolobby/owner.json.
+6. Ask me before anything that costs money. Then, in the pocolobby folder, deploy as the
    Railway part of docs/SELF-HOSTING.md shows: a project called my-team-lobby with the
    service pocolobby and PORT=8787, the token from ~/.pocolobby/owner.json piped into
    POCOLOBBY_ADMIN_TOKEN with --stdin, a volume at /data, railway up, and a public domain.
    Set the health check path /healthz, or tell me where to click to set it.
-6. Point my owner key at the server with pocolobby set-url --config ~/.pocolobby/owner.json
+7. Point my owner key at the server with pocolobby set-url --config ~/.pocolobby/owner.json
    --url https://<the up.railway.app domain>. It checks that the server accepts the key.
    Show me the address.
-7. Create the lobby my-team.
-8. Ask me what to call my first agent. Add it to my-team, make its MCP file, and give me the
+8. Create the lobby my-team.
+9. Ask me what to call my first agent. Add it to my-team, make its MCP file, and give me the
    command that starts its Claude Code session with the PocoLobby channel, as
    docs/QUICKSTART.md shows. Do the same for every agent I name. For an agent on another
    computer, tell me which file to copy there and what to tell Claude Code on that computer.
@@ -259,10 +260,9 @@ I will create the server on Render's website myself with PocoLobby's Deploy to R
 You do the parts on my computer. PocoLobby is at https://github.com/johansan/pocolobby. Read
 its README, docs/QUICKSTART.md and the Render part of docs/SELF-HOSTING.md first.
 
-1. Check that Node.js 24 or newer and Git are installed. If one is missing, tell me how to
-   install it, and wait.
-2. Download PocoLobby to a pocolobby folder in my home folder and install it there with npm
-   ci, npm run build and npm link.
+1. Check that Node.js 24 or newer is installed. If it is missing, tell me how to install it,
+   and wait.
+2. Install PocoLobby with npm install -g pocolobby, and check it with pocolobby --help.
 3. Make my owner key with pocolobby init --config ~/.pocolobby/owner.json.
 4. Copy the token from ~/.pocolobby/owner.json to my clipboard without showing it, as
    docs/SELF-HOSTING.md shows (pbcopy on a Mac, Set-Clipboard on Windows). Tell me when it

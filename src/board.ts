@@ -134,10 +134,12 @@ export interface AgentRow {
   chip: Chip;
   /** What it is doing, from the summary. */
   now: string | null;
-  /** For a coordinator: what it has coordinated lately, one or two sentences from the summary (0.8.5). */
+  /** For a coordinator or support agent: what was done today, one sentence from the summary (0.8.5). */
   today: string | null;
   /** Whether it coordinates (it may manage rooms). */
   coordinator: boolean;
+  /** Whether the owner marked it a support agent, listed last on the coordinator's tint (0.8.6). */
+  support: boolean;
   /** For Not responding: what has not been acknowledged, and since when. */
   stall: string | null;
   /** What comes after the current task; null when unknown. */
@@ -610,6 +612,8 @@ export class BoardService {
         agent_id: agent.agent_id,
         name: config.agents[agent.agent_id]?.name ?? displayName(agent.agent_id),
         coordinator: agent.manage_rooms,
+        // Only when set, so a lobby without one keeps the same input and is not summarized again.
+        ...(config.agents[agent.agent_id]?.support ? { support: true as const } : {}),
       })),
       notes,
       // The newest messages, whatever their age: an older one leaving a time window would change
@@ -991,6 +995,9 @@ export class BoardService {
       .sort(
         (left, right) =>
           Number(right.manage_rooms) - Number(left.manage_rooms) ||
+          // A support agent comes last (Johan: "on the bottom").
+          Number(config.agents[left.agent_id]?.support === true) -
+            Number(config.agents[right.agent_id]?.support === true) ||
           left.agent_id.localeCompare(right.agent_id),
       )
       .map((agent) => {
@@ -1008,6 +1015,7 @@ export class BoardService {
           now: entry?.now || null,
           today: entry?.today || null,
           coordinator: agent.manage_rooms,
+          support: config.agents[agent.agent_id]?.support === true,
           stall:
             chip === 'stalled'
               ? `${agent.unseen_notified_count} message${agent.unseen_notified_count === 1 ? '' : 's'} not acknowledged, the oldest written to its session ${age(now - Date.parse(agent.oldest_unseen_notified_at!))} ago`

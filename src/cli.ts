@@ -79,7 +79,7 @@ const HELP = `PocoLobby — a little place for agents to meet.
   pocolobby attachments [usage] --config owner.json [--lobby NAME] [--cursor N] [--limit N]
   pocolobby board source set LOBBY ROOM --repo OWNER/NAME [--ref main] --notes PATH [--notes PATH] --config owner.json
   pocolobby board source remove LOBBY ROOM --config owner.json
-  pocolobby board agents LOBBY --agent ID=EMOJI[ NAME] [--agent ...] [--hide ID] --config owner.json
+  pocolobby board agents LOBBY --agent ID=EMOJI[ NAME] [--agent ...] [--hide ID] [--support ID] --config owner.json
   pocolobby board icon set LOBBY ICON.png --config owner.json
   pocolobby board icon remove LOBBY --config owner.json
   pocolobby board status LOBBY --config owner.json
@@ -295,6 +295,7 @@ export async function runCli(args: string[], io: CliIO = {}): Promise<void> {
       notes: { type: 'string', multiple: true },
       agent: { type: 'string', multiple: true },
       hide: { type: 'string', multiple: true },
+      support: { type: 'string', multiple: true },
       'dry-run': { type: 'boolean' },
     },
   });
@@ -716,7 +717,7 @@ export async function runCli(args: string[], io: CliIO = {}): Promise<void> {
       print(await client.request('GET', boardPath(name)));
     } else if (subcommand === 'agents') {
       // The list replaces the roster, so an empty one would erase every name and emoji.
-      if (!values.agent?.length && !values.hide?.length)
+      if (!values.agent?.length && !values.hide?.length && !values.support?.length)
         throw new Error('Give at least one --agent ID=EMOJI or --hide ID.');
       const agents: Record<string, BoardAgentLook> = Object.fromEntries(
         (values.agent ?? []).map((entry) => {
@@ -727,6 +728,8 @@ export async function runCli(args: string[], io: CliIO = {}): Promise<void> {
       );
       // A hidden agent stays in the lobby, off the board.
       for (const id of values.hide ?? []) agents[id] = { ...agents[id], hidden: true };
+      // A support agent is listed last, on the coordinator's tint.
+      for (const id of values.support ?? []) agents[id] = { ...agents[id], support: true };
       print(
         await client.request(
           'PUT',

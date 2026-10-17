@@ -34,7 +34,7 @@ export const SYSTEM_PROMPT = `You write one part of a progress board for the own
 
 The user message is one JSON object with:
 - lobby: the lobby's name.
-- agents: every enabled agent, with its exact agent_id, its name, and coordinator: true for an agent that hands out work to the others.
+- agents: every enabled agent, with its exact agent_id, its name, coordinator: true for an agent that hands out work to the others, and support: true for an agent that supports the lobby from outside the team's work, such as one that develops the lobby's tools.
 - notes: the team's authoritative work state, one entry per room: its room and repository, and its Markdown files, all read at one commit. A room without files has no notes yet. A file with "truncated" holds only its beginning: do not guess what follows. Formats vary between notes. Most have a "Now" section with one bullet per agent (what it finished, "Now: ...", "Then ..."), and a table of open rows that names who owns each row and its state.
 - messages: recent report and assignment messages between agents, newest first, each cut to an excerpt; older ones may be left out.
 
@@ -49,7 +49,7 @@ Write for the owner, who reads the board without the notes at hand and does not 
 For each agent in agents, one entry with the same agent_id:
 - now: what it is working on and why, in one phrase, such as "Speeding up slide export so large decks open in seconds"; "" when the sources do not say. Give the reason only when the sources state it.
 - next: the concrete tasks queued for it after the current one, in order, such as "Then ...", "next ...", or open rows it owns that are neither done nor blocked. Leave out done or landed work, ideas, and rows waiting for a decision or for another agent. [] only when the sources say nothing is queued; null when they do not say enough to tell.
-- today: for an agent with coordinator true, one short plain sentence on what the team got done today under its coordination according to the messages, by area and not message by message, such as "Fixed the export crash on Windows and moved slide layout work to Luke". "" for every other agent, and "" when the messages say nothing about it.
+- today: for an agent with coordinator true, one short plain sentence on what the team got done today under its coordination according to the messages, by area and not message by message, such as "Fixed the export crash on Windows and moved slide layout work to Luke". For an agent with support true, one short plain sentence on what it did today according to the messages, such as "Shipped the Fable usage bars and helped Vader roll out the new version". "" for every other agent, and "" when the messages say nothing about it.
 
 Aim for these lengths in characters: now 120, each next item 80, today 140. Shorter is better, so leave out detail first. But never cut an entry off: when it needs more words to be complete, write them. Every entry ends as a whole phrase or sentence, never with "…" or a word broken off.`;
 
@@ -78,7 +78,9 @@ export const OUTPUT_SCHEMA = object({
         { type: 'array', items: { type: 'string' } },
         'Each item about 80 characters, a complete phrase; [] when nothing is queued; null when unknown',
       ),
-      today: text('For a coordinator: about 140 characters, one complete sentence; otherwise ""'),
+      today: text(
+        'For a coordinator or support agent: about 140 characters, one complete sentence; otherwise ""',
+      ),
     }),
   },
 });
@@ -88,6 +90,8 @@ export interface SummaryAgent {
   name: string;
   /** Whether it hands out work to the others; the summary tells what it coordinated (0.8.5). */
   coordinator: boolean;
+  /** A support agent, such as the one developing the lobby's tools: the summary tells what it did (0.8.6). */
+  support?: true;
 }
 /** One room's notes as the summarizer reads them. */
 export interface SummaryNotes {

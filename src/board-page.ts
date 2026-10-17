@@ -145,9 +145,9 @@ ${EMPTY_CSS}
 .agent .state { flex: 1 0 auto; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
 .agent .state .active { margin-left: auto; }
 .agent .pills { display: contents; }
-/* The coordinator's row, first in the list, on the sunk tone with its pills and chip on white (Johan chose B). */
-.agent.coordinator { background: var(--sunk); }
-.agent.coordinator .pill:not(.effort), .agent.coordinator .s-away { background: var(--surface); }
+/* The coordinator's row, first in the list, on the sunk tone with its pills and chip on white (Johan chose B); a support agent's, last, the same. */
+.agent.coordinator, .agent.support { background: var(--sunk); }
+.agent.coordinator .pill:not(.effort), .agent.coordinator .s-away, .agent.support .pill:not(.effort), .agent.support .s-away { background: var(--surface); }
 .agent .who strong { font-family: var(--display); font-size: 16px; }
 .agent .now { grid-column: 2 / -1; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
 .agent .stall { display: block; color: var(--crit); font-size: 12.5px; }
@@ -458,23 +458,25 @@ function agentRow(row: AgentRow, view: BoardView): string {
     ? `<div class="avatar ring-${row.chip}" aria-hidden="true">${escape(row.emoji)}</div>`
     : `<div class="avatar initial ring-${row.chip}" aria-hidden="true">${escape([...row.name][0] ?? '?')}</div>`;
   const offline = row.connected ? '' : '<span class="fact">bridge offline</span>';
-  // A coordinator shows what it has coordinated lately instead of now and next (Johan); with no
-  // description yet it shows its own task, or nothing.
-  const told = row.coordinator ? row.today || row.now : row.now;
+  // A coordinator shows what it has coordinated lately instead of now and next (Johan), and a
+  // support agent what it did today ("your description should be same as coordinator"); with no
+  // description yet either shows its own task, or nothing.
+  const lead = row.coordinator || row.support;
+  const told = lead ? row.today || row.now : row.now;
   const now = told
     ? escape(told)
-    : row.coordinator
+    : lead
       ? ''
       : '<span class="muted">No current task in the notes</span>';
   const stall = row.stall ? `<span class="stall">${escape(row.stall)}</span>` : '';
   const next =
-    row.next === null || row.coordinator
+    row.next === null || lead
       ? ''
       : row.next.count
         ? `<div class="next"><b>Next:</b> ${row.next.items.map(escape).join(', ')}${row.next.count > row.next.items.length ? ` and ${row.next.count - row.next.items.length} more` : ''}</div>`
         : '<div class="next"><b>Next:</b> nothing queued</div>';
   const usage = row.usage ? usageLine(row.usage, Date.parse(view.generated_at)) : '';
-  return `<div class="agent${row.coordinator ? ' coordinator' : ''}">${avatar}<div class="who"><strong>${escape(row.name)}</strong>${sessionPills(row.usage)}<span class="state"><span class="chip s-${row.chip}">${CHIP_LABELS[row.chip]}</span>${offline}<span class="active" title="Quarter hours with messages in the last 24 hours">${row.active === 'none' ? 'no messages' : `${escape(row.active)} active`}</span></span></div>${now || stall ? `<div class="now">${now}${stall}</div>` : ''}${next}${usage}${strip(row, view)}</div>`;
+  return `<div class="agent${row.coordinator ? ' coordinator' : row.support ? ' support' : ''}">${avatar}<div class="who"><strong>${escape(row.name)}</strong>${sessionPills(row.usage)}<span class="state"><span class="chip s-${row.chip}">${CHIP_LABELS[row.chip]}</span>${offline}<span class="active" title="Quarter hours with messages in the last 24 hours">${row.active === 'none' ? 'no messages' : `${escape(row.active)} active`}</span></span></div>${now || stall ? `<div class="now">${now}${stall}</div>` : ''}${next}${usage}${strip(row, view)}</div>`;
 }
 
 /**

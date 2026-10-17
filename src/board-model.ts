@@ -12,6 +12,8 @@ export interface BoardAgentLook {
   name?: string;
   /** Left off the board's rows and summaries; the agent stays in the lobby. */
   hidden?: true;
+  /** A support agent outside the team's work: listed last, on the coordinator's tint (0.8.6). */
+  support?: true;
 }
 /** The summarizer models a lobby may choose (0.5.0); the first is the default. */
 export const SUMMARY_MODELS = ['claude-haiku-5-5', 'claude-sonnet-5-5'] as const;
@@ -109,6 +111,9 @@ export const BoardAgentsSchema = z
           .object({
             emoji: Emoji.optional(),
             hidden: z.literal(true).optional(),
+            // A support agent outside the team's work, such as the one that develops PocoLobby
+            // for the lobby: listed last, on the coordinator's tint (Johan, 0.8.6).
+            support: z.literal(true).optional(),
             name: z
               .string()
               .min(1)

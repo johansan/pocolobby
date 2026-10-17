@@ -674,7 +674,7 @@ export function renderAgents(
       const status = agent.last_message_at
         ? `<div class="files-line">last message ${escape(time(agent.last_message_at))}</div>`
         : '';
-      return `<li><span class="main"><span class="avatar" aria-hidden="true">${escape(look?.emoji ?? agent.agent_id[0]!.toUpperCase())}</span><strong>${escape(look?.name ?? agent.agent_id)}</strong> <span class="muted">${agent.manage_rooms ? 'coordinator, ' : ''}${escape(rooms.join(', ') || 'no rooms')}${look?.hidden ? ', not on the board' : ''}</span>${status}</span>${chip}</li>`;
+      return `<li><span class="main"><span class="avatar" aria-hidden="true">${escape(look?.emoji ?? agent.agent_id[0]!.toUpperCase())}</span><strong>${escape(look?.name ?? agent.agent_id)}</strong> <span class="muted">${agent.manage_rooms ? 'coordinator, ' : ''}${escape(rooms.join(', ') || 'no rooms')}${look?.hidden ? ', not on the board' : look?.support ? ', support' : ''}</span>${status}</span>${chip}</li>`;
     });
   return page(
     shell,

@@ -809,6 +809,52 @@ test('an agent the owner hides has no row and no summary, but what it waits on s
   );
 });
 
+test('a support agent is listed last on the coordinator’s tint and told by what it did today (0.8.6)', async (t) => {
+  // Johan: "I think we should show you in the chart as well as Poco", "on the bottom maybe same
+  // background color as coordinator", "your description should be same as coordinator, what you
+  // did today".
+  const { github, clock, store } = await summarizedStore(t);
+  store.setBoardAgents(LOBBY, { agents: { leia: { emoji: '🛎️', support: true } } });
+  const fake = fakeClient([]);
+  const board = service(t, store, () => clock.now, {
+    githubToken: 'github-test-value',
+    githubApi: github.url,
+    summaryClient: fake.client,
+  });
+  await board.tick();
+  const input = JSON.parse(String(fake.calls[0]!.messages[0]!.content)) as {
+    agents: Record<string, unknown>[];
+  };
+  assert.deepEqual(
+    input.agents.find((agent) => agent.agent_id === 'leia'),
+    { agent_id: 'leia', name: 'Leia', coordinator: false, support: true },
+  );
+  // Others go as before, so a lobby without a support agent keeps the same input.
+  assert.equal('support' in input.agents.find((agent) => agent.agent_id === 'mouse')!, false);
+  const view = board.view(LOBBY);
+  assert.deepEqual(
+    view.agents.map((agent) => agent.agent_id),
+    ['vader', 'mouse', 'padme', 'leia'],
+  );
+  const html = renderBoardBody({
+    ...view,
+    agents: [
+      {
+        ...view.agents.at(-1)!,
+        now: 'Its own task',
+        next: { count: 1, items: ['Then more'] },
+        today: 'Shipped the Fable usage bars and helped Vader roll out the new version.',
+      },
+    ],
+  });
+  assert.match(html, /<div class="agent support">/);
+  assert.match(
+    html,
+    /<div class="now">Shipped the Fable usage bars and helped Vader roll out the new version\.<\/div>/,
+  );
+  assert.doesNotMatch(html, /Next:|Its own task/);
+});
+
 test('messages expiring after a day do not pay for a summary with nothing new', async (t) => {
   // The input is the newest 40 reports whatever their age, so each expiry changed it: on a quiet
   // day with the board open, every 10 minutes paid for the same summary.
@@ -1769,6 +1815,10 @@ test('owner CLI: sources, agents, and a status without secrets', async (t) => {
       'leia=👑',
       '--agent',
       'padme=🌸 Padmé',
+      '--agent',
+      'mouse=🛎️ Poco',
+      '--support',
+      'mouse',
       '--config',
       config,
     ],
@@ -1796,6 +1846,7 @@ test('owner CLI: sources, agents, and a status without secrets', async (t) => {
   assert.equal(status.visibility, 'private');
   assert.deepEqual(status.summary_settings, { model: 'claude-haiku-5-5', effort: 'low' });
   assert.deepEqual(status.agents.padme, { emoji: '🌸', name: 'Padmé' });
+  assert.deepEqual(status.agents.mouse, { emoji: '🛎️', name: 'Poco', support: true });
   assert.deepEqual(
     status.sources.map((item) => [item.room_id, item.notes, item.commit_sha]),
     [

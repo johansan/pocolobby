@@ -410,6 +410,8 @@ export const UsageReportSchema = z
     // The session's model and reasoning effort, as Claude Code gives them to the status line (0.8.4).
     model: ModelId.optional(),
     effort: Effort.optional(),
+    // The session's context window in tokens, such as 200000 or 1000000 (0.8.5).
+    context: z.number().int().positive().max(100_000_000).optional(),
   })
   .strict();
 export type UsageReport = z.infer<typeof UsageReportSchema>;
@@ -422,7 +424,7 @@ export type UsageReport = z.infer<typeof UsageReportSchema>;
 export const EVENT_VERSION = 5;
 export const EVENT_VERSION_HEADER = 'x-pocolobby-event-version';
 /** The package release; the adapter reports it as its MCP server version. */
-export const PACKAGE_VERSION = '0.8.4';
+export const PACKAGE_VERSION = '0.8.5';
 /** Extension data: keys in this form, at most this many, and this much JSON per object. */
 export const ExtensionKey = z.string().regex(/^[a-z][a-z0-9_]{0,63}$/);
 export const MAX_EXTENSION_KEYS = 32;

@@ -169,6 +169,9 @@ export const SummarySchema = z.object({
         agent_id: z.string().max(64),
         now: clamp(120),
         next: z.array(clamp(80)).nullable(),
+        // A coordinator's one or two sentences on what it has coordinated lately (0.8.5); a
+        // summary written before has none.
+        today: clamp(240).default(''),
       })
       .transform(({ next, ...agent }) => ({
         ...agent,

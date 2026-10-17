@@ -127,6 +127,10 @@ export interface AgentRow {
   chip: Chip;
   /** What it is doing, from the summary. */
   now: string | null;
+  /** For a coordinator: what it has coordinated lately, one or two sentences from the summary (0.8.5). */
+  today: string | null;
+  /** Whether it coordinates (it may manage rooms). */
+  coordinator: boolean;
   /** For Not responding: what has not been acknowledged, and since when. */
   stall: string | null;
   /** What comes after the current task; null when unknown. */
@@ -150,25 +154,39 @@ export interface UsageView {
   plan: string | null;
   five_hour: UsageWindowView | null;
   seven_day: UsageWindowView | null;
-  /** The session's model and effort as they read, such as "Opus 5.5 xhigh" (0.8.4). */
+  /** The session's model, context window and reasoning effort: "Opus 5.5", "1M", "xhigh" (0.8.5). */
   model: string | null;
+  context: string | null;
+  effort: string | null;
   observed_at: string;
 }
 /**
- * How a Claude model ID reads: claude-opus-5-5 is Opus 5.5, claude-opus-4-6[1m] is Opus 4.6 1M;
- * an ID in another form stays as it is.
+ * How a Claude model ID reads: claude-opus-5-5 and claude-opus-5-5[1m] are Opus 5.5 (the context
+ * window shows apart); an ID in another form stays as it is.
  */
 export function modelLabel(id: string): string {
-  const match = /^claude-([a-z]+)-(\d+)(?:-(\d{1,2}))?(?:-\d{8})?(?:\[(\w+)\])?$/u.exec(id);
+  const match = /^claude-([a-z]+)-(\d+)(?:-(\d{1,2}))?(?:-\d{8})?(?:\[\w+\])?$/u.exec(id);
   if (!match) return id;
-  const [, family = '', major = '', minor, variant] = match;
-  return `${family.charAt(0).toUpperCase()}${family.slice(1)} ${major}${minor ? `.${minor}` : ''}${variant ? ` ${variant.toUpperCase()}` : ''}`;
+  const [, family = '', major = '', minor] = match;
+  return `${family.charAt(0).toUpperCase()}${family.slice(1)} ${major}${minor ? `.${minor}` : ''}`;
 }
-/** A session's model with its effort, such as "Opus 5.5 xhigh", or null without a model. */
-export function modelWithEffort(report: UsageReport): string | null {
-  return report.model
-    ? `${modelLabel(report.model)}${report.effort ? ` ${report.effort}` : ''}`
-    : null;
+/**
+ * A session's context window in tokens: as its status line reports it (0.8.5), else 1M for a
+ * model ID that names it, as claude-opus-5-5[1m] does; null when neither says.
+ */
+export function contextWindow(report: UsageReport): number | null {
+  return report.context ?? (report.model && /\[1m\]$/iu.test(report.model) ? 1_000_000 : null);
+}
+/** A session's context window as it reads, or null. */
+const contextLabelOf = (report: UsageReport): string | null => {
+  const tokens = contextWindow(report);
+  return tokens === null ? null : contextLabel(tokens);
+};
+/** A context window as it reads: 1M, 200K. */
+export function contextLabel(tokens: number): string {
+  return tokens >= 1_000_000 && tokens % 1_000_000 === 0
+    ? `${tokens / 1_000_000}M`
+    : `${Math.round(tokens / 1000)}K`;
 }
 /** A reading older than this no longer shows: the agent's session has not run for a day. */
 export const USAGE_SHOWN_MS = 24 * 60 * 60_000;
@@ -200,7 +218,9 @@ export function usageView(
     plan: reading.report.plan ?? null,
     five_hour: window(reading.report.five_hour),
     seven_day: window(reading.report.seven_day),
-    model: modelWithEffort(reading.report),
+    model: reading.report.model ? modelLabel(reading.report.model) : null,
+    context: contextLabelOf(reading.report),
+    effort: reading.report.effort ?? null,
     observed_at: new Date(reading.at).toISOString(),
   };
   return view.five_hour || view.seven_day || view.account || view.model ? view : null;
@@ -284,6 +304,8 @@ export interface AgentUsage {
   model: string | null;
   /** How the model reads, such as "Opus 5.5". */
   model_name: string | null;
+  /** The session's context window in tokens, such as 1000000 (0.8.5). */
+  context_window: number | null;
   /** The session's reasoning effort: low, medium, high, xhigh or max. */
   effort: string | null;
   /** When this agent's own status line last reported. */
@@ -526,6 +548,7 @@ export class BoardService {
       agents: agents.map((agent) => ({
         agent_id: agent.agent_id,
         name: config.agents[agent.agent_id]?.name ?? displayName(agent.agent_id),
+        coordinator: agent.manage_rooms,
       })),
       notes,
       // The newest messages, whatever their age: an older one leaving a time window would change
@@ -664,6 +687,7 @@ export class BoardService {
       // The agent's own session, never the account's freshest report.
       model: report.model ?? null,
       model_name: report.model ? modelLabel(report.model) : null,
+      context_window: contextWindow(report),
       effort: report.effort ?? null,
       observed_at: new Date(reading.at).toISOString(),
     };
@@ -869,6 +893,8 @@ export class BoardService {
           emoji: config.agents[agent.agent_id]?.emoji ?? null,
           chip,
           now: entry?.now || null,
+          today: entry?.today || null,
+          coordinator: agent.manage_rooms,
           stall:
             chip === 'stalled'
               ? `${agent.unseen_notified_count} message${agent.unseen_notified_count === 1 ? '' : 's'} not acknowledged, the oldest written to its session ${age(now - Date.parse(agent.oldest_unseen_notified_at!))} ago`

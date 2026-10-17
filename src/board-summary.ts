@@ -34,7 +34,7 @@ export const SYSTEM_PROMPT = `You write one part of a progress board for the own
 
 The user message is one JSON object with:
 - lobby: the lobby's name.
-- agents: every enabled agent, with its exact agent_id and its name.
+- agents: every enabled agent, with its exact agent_id, its name, and coordinator: true for an agent that hands out work to the others.
 - notes: the team's authoritative work state, one entry per room: its room and repository, and its Markdown files, all read at one commit. A room without files has no notes yet. A file with "truncated" holds only its beginning: do not guess what follows. Formats vary between notes. Most have a "Now" section with one bullet per agent (what it finished, "Now: ...", "Then ..."), and a table of open rows that names who owns each row and its state.
 - messages: recent report and assignment messages between agents, newest first, each cut to an excerpt; older ones may be left out.
 
@@ -47,8 +47,9 @@ Write plain English, short phrases, no Markdown, no emoji. Leave out commit hash
 For each agent in agents, one entry with the same agent_id:
 - now: its current task, or "" when the sources do not say.
 - next: the concrete tasks queued for it after the current one, in order, such as "Then ...", "next ...", or open rows it owns that are neither done nor blocked. Leave out done or landed work, ideas, and rows waiting for a decision or for another agent. [] only when the sources say nothing is queued; null when they do not say enough to tell.
+- today: for an agent with coordinator true, one or two plain sentences on what it has coordinated according to the messages: the work it handed out and what came back finished, by area, not by message. "" for every other agent, and "" when the messages say nothing about it.
 
-Limits in characters, shorter is better: now 120, each next item 80.`;
+Limits in characters, shorter is better: now 120, each next item 80, today 240.`;
 
 const text = (description: string) => ({ type: 'string', description });
 const nullable = (schema: object, description: string) => ({
@@ -75,6 +76,7 @@ export const OUTPUT_SCHEMA = object({
         { type: 'array', items: { type: 'string' } },
         'Each item at most 80 characters; [] when nothing is queued; null when unknown',
       ),
+      today: text('For a coordinator: at most 240 characters, one or two sentences; otherwise ""'),
     }),
   },
 });
@@ -82,6 +84,8 @@ export const OUTPUT_SCHEMA = object({
 export interface SummaryAgent {
   agent_id: string;
   name: string;
+  /** Whether it hands out work to the others; the summary tells what it coordinated (0.8.5). */
+  coordinator: boolean;
 }
 /** One room's notes as the summarizer reads them. */
 export interface SummaryNotes {

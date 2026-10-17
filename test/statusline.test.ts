@@ -136,6 +136,17 @@ test('the status line reports the session’s model and effort, and leaves out a
     [odd.model, odd.effort, odd.seven_day?.used_percentage],
     [undefined, undefined, 60],
   );
+  // The context window comes along (0.8.5).
+  assert.equal(
+    usageReport(
+      {
+        ...session({ id: 'claude-opus-5-5' }, { level: 'high' }),
+        context_window: { context_window_size: 1_000_000 },
+      },
+      null,
+    )!.context,
+    1_000_000,
+  );
   // A session without plan windows, such as one on an API key, still reports its model.
   assert.deepEqual(usageReport({ model: { id: 'claude-sonnet-5-5' } }, null), {
     model: 'claude-sonnet-5-5',

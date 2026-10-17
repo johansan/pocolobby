@@ -928,7 +928,7 @@ test('the summarizer runs when its sources change, at most once per interval', a
     ['assignment', 'report', 'report'],
   );
   // Each agent goes with its name only; its role text stays out of the request.
-  assert.deepEqual(Object.keys(data.agents[0]!).sort(), ['agent_id', 'name']);
+  assert.deepEqual(Object.keys(data.agents[0]!).sort(), ['agent_id', 'coordinator', 'name']);
   // A commit that leaves the notes alone does not trigger a summary.
   github.push('johansan/my-team', 'main', 'app-only', {
     'notes/3d.md': '# 3D\n- Leia: Now X.',
@@ -941,7 +941,7 @@ test('the summarizer runs when its sources change, at most once per interval', a
 test('the request: Haiku 5.5, low effort, a JSON schema, a stable prompt, no tools', () => {
   const request = summaryRequest({
     lobby: LOBBY,
-    agents: [{ agent_id: 'leia', name: 'Leia' }],
+    agents: [{ agent_id: 'leia', name: 'Leia', coordinator: false }],
     notes: [
       {
         room_id: 'app',
@@ -1178,6 +1178,58 @@ test('clipping, unknown agents, and unknown versus empty queues', () => {
   assert.throws(() => SummarySchema.parse({ agents: [{ agent_id: 'x', now: 'n' }] }));
 });
 
+test('a coordinator’s row tells what it coordinated, not now and next (0.8.5)', (t) => {
+  // Johan: "it does not make sense that coordinator shows No current task in the notes, Next:
+  // nothing queued … a description in two lines instead".
+  const summary = SummarySchema.parse({
+    agents: [
+      {
+        agent_id: 'vader',
+        now: '',
+        next: [],
+        today: 'Handed Mouse the export crash and had Leia check the fix on Windows.',
+      },
+      { agent_id: 'leia', now: 'Checks the fix', next: null },
+    ],
+  });
+  assert.deepEqual(
+    summary.agents.map((agent) => agent.today),
+    ['Handed Mouse the export crash and had Leia check the fix on Windows.', ''],
+  );
+  assert.equal(
+    SummarySchema.parse({ agents: [{ agent_id: 'v', now: '', next: [], today: 't'.repeat(300) }] })
+      .agents[0]!.today.length,
+    240,
+  );
+  const now = Date.parse('2026-10-16T12:00:00Z');
+  const store = memoryStore(t, () => now);
+  populate(store);
+  const board = service(t, store, () => now, {});
+  const view = board.view(LOBBY);
+  const base = view.agents[0]!;
+  const coordinator = {
+    ...base,
+    coordinator: true,
+    chip: 'coord' as const,
+    now: null,
+    next: { count: 0, items: [] },
+  };
+  const told = renderBoardBody({
+    ...view,
+    agents: [
+      { ...coordinator, today: 'Handed Mouse the export crash and had Leia check the fix.' },
+    ],
+  });
+  assert.match(
+    told,
+    /<div class="now">Handed Mouse the export crash and had Leia check the fix\.<\/div>/,
+  );
+  assert.doesNotMatch(told, /No current task|Next:/);
+  // With no description yet, a coordinator shows nothing in their place.
+  const quiet = renderBoardBody({ ...view, agents: [{ ...coordinator, today: null }] });
+  assert.doesNotMatch(quiet, /No current task|Next:|class="now"/);
+});
+
 test('summary cost follows Haiku 5.5 prices, including the long-prompt rate and cache writes', () => {
   const base = {
     input_tokens: 0,
@@ -1269,6 +1321,8 @@ test('each agent row shows its plan usage, the account only on a private board',
     five_hour: { left: 62, resets_at: '2026-10-16T19:40:00.000Z' },
     seven_day: { left: 15, resets_at: '2026-10-21T07:00:00.000Z' },
     model: null,
+    context: null,
+    effort: null,
     observed_at: '2026-10-16T18:00:00.000Z',
   });
   assert.equal(board.view(LOBBY).agents.find((agent) => agent.agent_id === 'mouse')!.usage, null);
@@ -1291,23 +1345,40 @@ test('each agent row shows its plan usage, the account only on a private board',
   assert.match(renderBoardBody(board.view(LOBBY)), /as of 2 h ago/);
   now = Date.parse('2026-10-16T18:00:00Z') + USAGE_SHOWN_MS;
   assert.equal(row().usage, null);
-  // Johan: "it could list Gonk (Opus 5.5 xhigh)". The model and effort follow the agent's name,
-  // from its own session, and a reading with only them still shows.
-  board.recordUsage('my-team/leia', { model: 'claude-opus-5-5', effort: 'xhigh' });
-  assert.equal(row().usage!.model, 'Opus 5.5 xhigh');
+  // Johan: "it could list Gonk (Opus 5.5 xhigh)", as pills (0.8.5): the model, the context window
+  // and the effort in its level's colour, from the agent's own session; a reading with only
+  // them still shows.
+  board.recordUsage('my-team/leia', { model: 'claude-opus-5-5[1m]', effort: 'xhigh' });
+  assert.deepEqual(
+    [row().usage!.model, row().usage!.context, row().usage!.effort],
+    ['Opus 5.5', '1M', 'xhigh'],
+  );
+  const pills = renderBoardBody(board.view(LOBBY));
+  assert.match(pills, /<strong>Leia<\/strong><span class="pill" title="Model">/);
+  assert.match(pills, /<b>Opus 5\.5<\/b><\/span><span class="pill" title="Context window">/);
   assert.match(
-    renderBoardBody(board.view(LOBBY)),
-    /<strong>Leia<\/strong><span class="model">Opus 5\.5 xhigh<\/span>/,
+    pills,
+    /<span class="pill effort e-xhigh" title="Reasoning effort">.*?xhigh<\/span>/,
   );
   const usage = board.agentUsage(LOBBY, 'leia')!;
   assert.deepEqual(
-    [usage.model, usage.model_name, usage.effort],
-    ['claude-opus-5-5', 'Opus 5.5', 'xhigh'],
+    [usage.model, usage.model_name, usage.context_window, usage.effort],
+    ['claude-opus-5-5[1m]', 'Opus 5.5', 1_000_000, 'xhigh'],
   );
+  // The status line's own context window wins over the model ID; without either there is none.
+  board.recordUsage('my-team/leia', {
+    model: 'claude-opus-5-5',
+    effort: 'medium',
+    context: 200_000,
+  });
+  assert.deepEqual([row().usage!.context, row().usage!.effort], ['200K', 'medium']);
+  assert.match(renderBoardBody(board.view(LOBBY)), /class="pill effort e-medium"/);
   board.recordUsage('my-team/leia', { model: 'claude-sonnet-5-5' });
-  assert.equal(row().usage!.model, 'Sonnet 5.5');
-  assert.equal(board.agentUsage(LOBBY, 'leia')!.effort, null);
-  assert.equal(modelLabel('claude-opus-4-6[1m]'), 'Opus 4.6 1M');
+  assert.deepEqual(
+    [row().usage!.model, row().usage!.context, row().usage!.effort],
+    ['Sonnet 5.5', null, null],
+  );
+  assert.equal(modelLabel('claude-opus-4-6[1m]'), 'Opus 4.6');
   assert.equal(modelLabel('claude-haiku-4-5-20251001'), 'Haiku 4.5');
   assert.equal(modelLabel('claude-fable-5-1'), 'Fable 5.1');
   assert.equal(modelLabel('some-other-model'), 'some-other-model');

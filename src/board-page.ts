@@ -144,7 +144,16 @@ ${EMPTY_CSS}
 .agent .next { grid-column: 2 / -1; font-size: 13.5px; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
 .agent .next b { color: var(--ink); font-weight: 600; }
 .agent .usage { grid-column: 2 / -1; font-size: 12.5px; color: var(--muted); min-width: 0; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; column-gap: 14px; }
-.agent .who .model { font-size: 13px; color: var(--muted); font-weight: 500; }
+.pill { display: inline-flex; align-items: center; gap: 5px; font: 500 12.5px var(--body); color: var(--muted); background: var(--sunk); border-radius: 999px; padding: 3px 9px 3px 7px; white-space: nowrap; }
+.pill svg { width: 13px; height: 13px; flex: none; }
+.pill b { color: var(--ink); font-weight: 600; }
+/* Effort colours: xhigh, the lobby's standard, in blue (Johan), so an agent set differently stands out. */
+.pill.effort { font-weight: 600; color: var(--e); background: var(--e-soft); }
+.e-low { --e: var(--crit); --e-soft: var(--crit-soft); }
+.e-medium { --e: var(--warn); --e-soft: var(--warn-soft); }
+.e-high { --e: var(--ok); --e-soft: var(--ok-soft); }
+.e-xhigh { --e: var(--wait); --e-soft: var(--wait-soft); }
+.e-max { --e: var(--brass); --e-soft: var(--brass-soft); }
 .agent .usage b { color: var(--ink); font-weight: 600; }
 .agent .usage .low { color: var(--crit); }
 /* 96 quarter hours, oldest first: one bar per block, taller with more messages in and out. */
@@ -381,21 +390,60 @@ function accountRows(view: BoardView): string {
     )}</div><p class="legend">Each bar is an account's week. The mark is its target: how much of the week it should have used by now to use all of it exactly by its reset. Green: on target. Blue: room left. Orange: used ahead of target. Red: more than ${FAR_AHEAD} points ahead.</p>`;
 }
 
+/** The session pills' icons: a spark for the model, pages for the context window, a gauge for the effort. */
+const PILL_ICONS = {
+  model:
+    '<path d="M8 1.5 9.6 6.4 14.5 8 9.6 9.6 8 14.5 6.4 9.6 1.5 8 6.4 6.4Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
+  context:
+    '<rect x="2.5" y="4.5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5 2.5h7a1.5 1.5 0 0 1 1.5 1.5v7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  effort:
+    '<path d="M2.5 11.5a5.5 5.5 0 1 1 11 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 11.5 11 6.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.5" r="1.2" fill="currentColor"/>',
+};
+const pill = (icon: keyof typeof PILL_ICONS, title: string, text: string, className = '') =>
+  `<span class="pill${className}" title="${title}"><svg viewBox="0 0 16 16" aria-hidden="true">${PILL_ICONS[icon]}</svg>${text}</span>`;
+
+/**
+ * What the agent's session runs, as three pills beside its name (Johan chose them, 2026-10-17):
+ * the model, its context window, and the reasoning effort in its level's colour.
+ */
+function sessionPills(usage: UsageView | null): string {
+  if (!usage) return '';
+  return [
+    usage.model ? pill('model', 'Model', `<b>${escape(usage.model)}</b>`) : '',
+    usage.context ? pill('context', 'Context window', escape(usage.context)) : '',
+    usage.effort
+      ? pill(
+          'effort',
+          'Reasoning effort',
+          escape(usage.effort),
+          ` effort e-${escape(usage.effort)}`,
+        )
+      : '',
+  ].join('');
+}
+
 function agentRow(row: AgentRow, view: BoardView): string {
   const avatar = row.emoji
     ? `<div class="avatar ring-${row.chip}" aria-hidden="true">${escape(row.emoji)}</div>`
     : `<div class="avatar initial ring-${row.chip}" aria-hidden="true">${escape([...row.name][0] ?? '?')}</div>`;
   const offline = row.connected ? '' : '<span class="fact">bridge offline</span>';
-  const now = row.now ? escape(row.now) : '<span class="muted">No current task in the notes</span>';
+  // A coordinator shows what it has coordinated lately instead of now and next (Johan); with no
+  // description yet it shows its own task, or nothing.
+  const told = row.coordinator ? row.today || row.now : row.now;
+  const now = told
+    ? escape(told)
+    : row.coordinator
+      ? ''
+      : '<span class="muted">No current task in the notes</span>';
   const stall = row.stall ? `<span class="stall">${escape(row.stall)}</span>` : '';
   const next =
-    row.next === null
+    row.next === null || row.coordinator
       ? ''
       : row.next.count
         ? `<div class="next"><b>Next:</b> ${row.next.items.map(escape).join(', ')}${row.next.count > row.next.items.length ? ` and ${row.next.count - row.next.items.length} more` : ''}</div>`
         : '<div class="next"><b>Next:</b> nothing queued</div>';
   const usage = row.usage ? usageLine(row.usage, Date.parse(view.generated_at)) : '';
-  return `<div class="agent">${avatar}<div class="who"><strong>${escape(row.name)}</strong>${row.usage?.model ? `<span class="model">${escape(row.usage.model)}</span>` : ''}<span class="chip s-${row.chip}">${CHIP_LABELS[row.chip]}</span>${offline}</div><span class="active" title="Quarter hours with messages in the last 24 hours">${row.active === 'none' ? 'no messages' : `${escape(row.active)} active`}</span><div class="now">${now}${stall}</div>${next}${usage}${strip(row, view)}</div>`;
+  return `<div class="agent">${avatar}<div class="who"><strong>${escape(row.name)}</strong>${sessionPills(row.usage)}<span class="chip s-${row.chip}">${CHIP_LABELS[row.chip]}</span>${offline}</div><span class="active" title="Quarter hours with messages in the last 24 hours">${row.active === 'none' ? 'no messages' : `${escape(row.active)} active`}</span>${now || stall ? `<div class="now">${now}${stall}</div>` : ''}${next}${usage}${strip(row, view)}</div>`;
 }
 
 /**

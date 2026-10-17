@@ -52,10 +52,12 @@ export function usageReport(input: unknown, account: Account | null): UsageRepor
     rate_limits?: Record<string, unknown>;
     model?: { id?: unknown };
     effort?: { level?: unknown };
+    context_window?: { context_window_size?: unknown };
   };
   const limits = data.rate_limits;
   const model = ModelId.safeParse(data.model?.id);
   const effort = Effort.safeParse(data.effort?.level);
+  const context = data.context_window?.context_window_size;
   const window = (value: unknown) => {
     const { used_percentage, resets_at } = (value ?? {}) as Record<string, unknown>;
     return typeof used_percentage === 'number' && typeof resets_at === 'number'
@@ -72,6 +74,8 @@ export function usageReport(input: unknown, account: Account | null): UsageRepor
     plan: account?.plan,
     model: model.success ? model.data : undefined,
     effort: effort.success ? effort.data : undefined,
+    context:
+      typeof context === 'number' && Number.isInteger(context) && context > 0 ? context : undefined,
   });
   if (!parsed.success) return null;
   // Only the fields the input had, so a reading compares by what it says.
@@ -168,14 +172,16 @@ export async function runStatusLine(
       await client.request('PUT', '/v1/usage', report);
       state = { ...state, sent: body, sent_at: now() };
     } catch (error) {
-      // A broker older than 0.8.4 refuses model and effort; send it the usage alone, so pacing
-      // keeps working, and try the whole report again at the next resend.
-      const { model, effort, ...usage } = report;
+      // An older broker refuses the session fields (model and effort before 0.8.4, the context
+      // window before 0.8.5); send it the usage alone, so pacing keeps working, and try the whole
+      // report again at the next resend.
+      const { five_hour, seven_day, account, plan } = report;
+      const usage = { five_hour, seven_day, account, plan };
       if (
         error instanceof LobbyClientError &&
         error.status === 400 &&
-        (model || effort) &&
-        (usage.five_hour || usage.seven_day)
+        (report.model || report.effort || report.context) &&
+        (five_hour || seven_day)
       ) {
         try {
           await client.request('PUT', '/v1/usage', usage);

@@ -1,0 +1,47 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: saturday
+      time: '06:00'
+      timezone: Europe/Stockholm
+    groups:
+      npm-dependencies:
+        patterns:
+          - '*'
+      # Group security fixes so one merge does not leave the other fixes behind main.
+      npm-security-updates:
+        applies-to: security-updates
+        patterns:
+          - '*'
+    # Majors wait for a person: the MCP SDK and zod shape what the bridge says to Claude Code,
+    # which the simulated host cannot fully check, and Node 24 is the oldest supported release.
+    ignore:
+      - dependency-name: '@modelcontextprotocol/sdk'
+        update-types:
+          - 'version-update:semver-major'
+      - dependency-name: 'zod'
+        update-types:
+          - 'version-update:semver-major'
+      - dependency-name: 'typescript'
+        update-types:
+          - 'version-update:semver-major'
+      - dependency-name: '@types/node'
+        update-types:
+          - 'version-update:semver-major'
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: saturday
+      time: '06:30'
+      timezone: Europe/Stockholm
+    groups:
+      github-actions:
+        patterns:
+          - '*'
+    open-pull-requests-limit: 5

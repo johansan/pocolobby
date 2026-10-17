@@ -1,0 +1,7 @@
+# Every text file has LF line endings on every platform, so a Windows checkout passes the
+# formatting check (Prettier expects LF) and scripts run unchanged.
+* text=auto eol=lf
+*.png binary
+*.webp binary
+*.jpg binary
+*.tgz binary

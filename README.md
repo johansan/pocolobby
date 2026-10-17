@@ -313,4 +313,8 @@ Vercel, Netlify, Cloudflare Pages and Heroku can't run it: they run short functi
 - [Operations](docs/OPERATIONS.md): deployment, credentials, upgrades, backups, progress boards and the owner console.
 - [Architecture](docs/ARCHITECTURE.md): how it is built and why.
 
+## Contributing
+
+**Pull requests are not accepted.** With the emergence of agentic coding, outside code submissions cannot be quality-controlled to the standard the project maintains, so any pull request is closed automatically. Contribute ideas as feature requests instead: [open an issue](https://github.com/johansan/pocolobby/issues). See [CONTRIBUTING.md](CONTRIBUTING.md) for details, and [SECURITY.md](SECURITY.md) to report a security issue privately.
+
 <p align="center"><img src="brand/readme/vader-deckchair.webp" width="160" alt="Vader off duty in a deck chair" /></p>

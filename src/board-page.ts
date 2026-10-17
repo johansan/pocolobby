@@ -132,11 +132,17 @@ ${EMPTY_CSS}
 .waitlist .since { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 .agents { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 .agent { background: var(--surface); display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 4px 12px; padding: 12px 16px; align-items: center; }
-.avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; background: var(--sunk); box-shadow: inset 0 0 0 2.5px var(--ring, var(--line)); }
+/* Level with the name line when the name, pills and state wrap onto two lines on a phone. */
+.avatar { align-self: start; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; background: var(--sunk); box-shadow: inset 0 0 0 2.5px var(--ring, var(--line)); }
 .avatar.initial { font: 700 17px var(--display); color: var(--muted); }
 .ring-working { --ring: var(--ok); } .ring-stalled { --ring: var(--crit); } .ring-away { --ring: var(--line); }
 .ring-wait { --ring: var(--wait); } .ring-coord { --ring: var(--brass); }
-.agent .who { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; min-width: 0; }
+.agent .who { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; min-width: 0; }
+/* The state chip and the activity wrap together, the activity at the row's right end, so on a phone
+   they share the line under the name and pills (Johan). */
+.agent .state { flex: 1 0 auto; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.agent .state .active { margin-left: auto; }
+.agent .pills { display: contents; }
 .agent .who strong { font-family: var(--display); font-size: 16px; }
 .agent .now { grid-column: 2 / -1; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
 .agent .stall { display: block; color: var(--crit); font-size: 12.5px; }
@@ -179,6 +185,11 @@ ${EMPTY_CSS}
 @media (max-width: 640px) {
   .lobby h1 { font-size: 24px; }
   .agent, .axis { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  /* On a phone the name, the state and its activity share the first line and the pills take the second (Johan). */
+  .agent .who { row-gap: 6px; }
+  .agent { padding-top: 20px; }
+  .agent .avatar { margin-top: -8px; } /* centred on the name line, overhanging it rather than pushing the pills down */
+  .agent .pills { order: 1; flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
   .strip { gap: 0; }
 }
 @media (prefers-reduced-motion: no-preference) { .seg button { transition: background 0.15s, color 0.15s; } }
@@ -390,14 +401,14 @@ function accountRows(view: BoardView): string {
     )}</div><p class="legend">Each bar is an account's week. The mark is its target: how much of the week it should have used by now to use all of it exactly by its reset. Green: on target. Blue: room left. Orange: used ahead of target. Red: more than ${FAR_AHEAD} points ahead.</p>`;
 }
 
-/** The session pills' icons: a spark for the model, pages for the context window, a gauge for the effort. */
+/** The session pills' icons: a spark for the model, pages for the context window, rising bars for the effort. */
 const PILL_ICONS = {
   model:
     '<path d="M8 1.5 9.6 6.4 14.5 8 9.6 9.6 8 14.5 6.4 9.6 1.5 8 6.4 6.4Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
   context:
     '<rect x="2.5" y="4.5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5 2.5h7a1.5 1.5 0 0 1 1.5 1.5v7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
   effort:
-    '<path d="M2.5 11.5a5.5 5.5 0 1 1 11 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 11.5 11 6.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.5" r="1.2" fill="currentColor"/>',
+    '<path d="M3.5 13v-3M8 13V7M12.5 13V3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
 };
 const pill = (icon: keyof typeof PILL_ICONS, title: string, text: string, className = '') =>
   `<span class="pill${className}" title="${title}"><svg viewBox="0 0 16 16" aria-hidden="true">${PILL_ICONS[icon]}</svg>${text}</span>`;
@@ -407,8 +418,8 @@ const pill = (icon: keyof typeof PILL_ICONS, title: string, text: string, classN
  * the model, its context window, and the reasoning effort in its level's colour.
  */
 function sessionPills(usage: UsageView | null): string {
-  if (!usage) return '';
-  return [
+  if (!usage || !(usage.model || usage.context || usage.effort)) return '';
+  return `<span class="pills">${[
     usage.model ? pill('model', 'Model', `<b>${escape(usage.model)}</b>`) : '',
     usage.context ? pill('context', 'Context window', escape(usage.context)) : '',
     usage.effort
@@ -419,7 +430,7 @@ function sessionPills(usage: UsageView | null): string {
           ` effort e-${escape(usage.effort)}`,
         )
       : '',
-  ].join('');
+  ].join('')}</span>`;
 }
 
 function agentRow(row: AgentRow, view: BoardView): string {
@@ -443,7 +454,7 @@ function agentRow(row: AgentRow, view: BoardView): string {
         ? `<div class="next"><b>Next:</b> ${row.next.items.map(escape).join(', ')}${row.next.count > row.next.items.length ? ` and ${row.next.count - row.next.items.length} more` : ''}</div>`
         : '<div class="next"><b>Next:</b> nothing queued</div>';
   const usage = row.usage ? usageLine(row.usage, Date.parse(view.generated_at)) : '';
-  return `<div class="agent">${avatar}<div class="who"><strong>${escape(row.name)}</strong>${sessionPills(row.usage)}<span class="chip s-${row.chip}">${CHIP_LABELS[row.chip]}</span>${offline}</div><span class="active" title="Quarter hours with messages in the last 24 hours">${row.active === 'none' ? 'no messages' : `${escape(row.active)} active`}</span>${now || stall ? `<div class="now">${now}${stall}</div>` : ''}${next}${usage}${strip(row, view)}</div>`;
+  return `<div class="agent">${avatar}<div class="who"><strong>${escape(row.name)}</strong>${sessionPills(row.usage)}<span class="state"><span class="chip s-${row.chip}">${CHIP_LABELS[row.chip]}</span>${offline}<span class="active" title="Quarter hours with messages in the last 24 hours">${row.active === 'none' ? 'no messages' : `${escape(row.active)} active`}</span></span></div>${now || stall ? `<div class="now">${now}${stall}</div>` : ''}${next}${usage}${strip(row, view)}</div>`;
 }
 
 /**

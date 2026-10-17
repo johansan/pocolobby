@@ -1354,7 +1354,10 @@ test('each agent row shows its plan usage, the account only on a private board',
     ['Opus 5.5', '1M', 'xhigh'],
   );
   const pills = renderBoardBody(board.view(LOBBY));
-  assert.match(pills, /<strong>Leia<\/strong><span class="pill" title="Model">/);
+  assert.match(
+    pills,
+    /<strong>Leia<\/strong><span class="pills"><span class="pill" title="Model">/,
+  );
   assert.match(pills, /<b>Opus 5\.5<\/b><\/span><span class="pill" title="Context window">/);
   assert.match(
     pills,

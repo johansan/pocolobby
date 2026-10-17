@@ -4,7 +4,7 @@
  * database or server opened in it later closes, which Windows refuses (EBUSY, EPERM) where macOS
  * and Linux allow it.
  */
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after } from 'node:test';
@@ -20,4 +20,20 @@ export function temporaryFolder(prefix: string): string {
   const folder = mkdtempSync(join(tmpdir(), prefix));
   folders.push(folder);
   return folder;
+}
+
+/**
+ * Whether this user can make a file symbolic link: always on macOS and Linux, and on Windows only
+ * with Developer Mode on or as an administrator.
+ */
+export function fileSymlinks(): boolean {
+  if (process.platform !== 'win32') return true;
+  const folder = temporaryFolder('pocolobby-symlink-');
+  try {
+    writeFileSync(join(folder, 'target'), '');
+    symlinkSync(join(folder, 'target'), join(folder, 'link'), 'file');
+    return true;
+  } catch {
+    return false;
+  }
 }

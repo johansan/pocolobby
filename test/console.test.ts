@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { chmod, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { test, type TestContext } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
@@ -1154,8 +1153,7 @@ test('operator CLI: allow, grant, revoke, enable, accounts and approved reposito
   const f = await browserFixture(t, (store) => {
     store.createLobby('tokentek');
   });
-  const directory = await mkdtemp(join(tmpdir(), 'pocolobby-console-cli-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = temporaryFolder('pocolobby-console-cli-');
   const config = join(directory, 'owner.json');
   await writeFile(config, JSON.stringify({ url: f.server.url, token: f.admin }));
   await chmod(config, 0o600);
@@ -1506,8 +1504,7 @@ test('the operator sets a board’s icon too, and a deleted lobby’s icon goes 
   const f = await browserFixture(t, (store) => {
     store.createLobby('tokentek');
   });
-  const directory = await mkdtemp(join(tmpdir(), 'pocolobby-icon-cli-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = temporaryFolder('pocolobby-icon-cli-');
   const config = join(directory, 'owner.json');
   await writeFile(config, JSON.stringify({ url: f.server.url, token: f.admin }));
   await chmod(config, 0o600);
@@ -1604,8 +1601,7 @@ test('the operator sets a display name too, and a deleted lobby’s goes with it
   const f = await browserFixture(t, (store) => {
     store.createLobby('tokentek');
   });
-  const directory = await mkdtemp(join(tmpdir(), 'pocolobby-display-cli-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = temporaryFolder('pocolobby-display-cli-');
   const config = join(directory, 'owner.json');
   await writeFile(config, JSON.stringify({ url: f.server.url, token: f.admin }));
   await chmod(config, 0o600);

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { delimiter, dirname, join, relative } from 'node:path';
 import test from 'node:test';
 import { commandOnPath, launchScript, pocolobbyVersion, stableLaunchPaths } from '../src/launch.js';
+import { fileSymlinks } from './temp.js';
 
 async function temporary<T>(fn: (directory: string) => Promise<T>): Promise<T> {
   const directory = await mkdtemp(join(tmpdir(), 'pocolobby-launch-'));
@@ -84,7 +85,7 @@ test('MCP launch paths skip a shim on PATH and use the sibling major alias', asy
 
 test(
   'MCP launch paths use a Homebrew-style PATH symlink and keep a shared package path',
-  { skip: process.platform === 'win32' && 'file symlinks need a privilege on Windows' },
+  { skip: !fileSymlinks() && 'file symlinks need Developer Mode or an administrator on Windows' },
   async () => {
     await temporary(async (directory) => {
       const execPath = await file(join(directory, 'Cellar/node/26.10.0/bin/node'));

@@ -21,6 +21,7 @@ import { runCli, serverSettings, type ConfigCheck } from '../src/cli.js';
 import { readConfig, validateConfig, writeConfigExclusive } from '../src/config.js';
 import { MINIMUM_NODE_MAJOR, unsupportedNodeMessage } from '../src/node-version.js';
 import { PACKAGE_VERSION } from '../src/protocol.js';
+import { fileSymlinks } from './temp.js';
 
 const ownerToken = 'owner-token-'.padEnd(48, 'x');
 const agentToken = 'agent-token-'.padEnd(48, 'y');
@@ -1012,7 +1013,7 @@ test('a backup copies the database as it is, also one with a schema the broker r
 
 test(
   'check-config reports a credential reached through a link, which the adapter refuses',
-  { skip: process.platform === 'win32' && 'symbolic links need privileges' },
+  { skip: !fileSymlinks() && 'file symlinks need Developer Mode or an administrator on Windows' },
   async () => {
     await temporary(async (directory) => {
       const config = join(directory, 'agent.json');

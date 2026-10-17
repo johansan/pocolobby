@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { type AddressInfo } from 'node:net';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test, type TestContext } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
@@ -297,8 +296,7 @@ test('reserved labels cannot become lobbies through the store, the admin API or 
   const created = await f.admin_('POST', '/v1/admin/lobbies', { lobby_id: 'status' });
   assert.equal(created.status, 400);
   assert.match(created.body, /reserved/);
-  const directory = await mkdtemp(join(tmpdir(), 'pocolobby-board-cli-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = temporaryFolder('pocolobby-board-cli-');
   const config = join(directory, 'owner.json');
   const { writeFile, chmod } = await import('node:fs/promises');
   await writeFile(config, JSON.stringify({ url: server.url, token: owner }));
@@ -1767,8 +1765,7 @@ test('owner CLI: sources, agents, and a status without secrets', async (t) => {
   const f = await browserFixture(t);
   const { server } = f;
   const owner = f.admin;
-  const directory = await mkdtemp(join(tmpdir(), 'pocolobby-board-cli-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = temporaryFolder('pocolobby-board-cli-');
   const config = join(directory, 'owner.json');
   const { writeFile, chmod } = await import('node:fs/promises');
   await writeFile(config, JSON.stringify({ url: server.url, token: owner }));

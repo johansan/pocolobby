@@ -798,9 +798,10 @@ test('an agent the owner hides has no row and no summary, but what it waits on s
   assert.match(sent, /\\"agent_id\\":\\"leia\\"/);
   assert.doesNotMatch(sent, /\\"agent_id\\":\\"padme\\"/);
   const view = board.view(LOBBY);
+  // The coordinator comes first (Johan: "show coordinator on top of agents list").
   assert.deepEqual(
     view.agents.map((agent) => agent.agent_id),
-    ['leia', 'mouse', 'vader'],
+    ['vader', 'leia', 'mouse'],
   );
   assert.deepEqual(
     view.waiting.map((row) => row.agent_id),
@@ -1225,6 +1226,10 @@ test('a coordinator’s row tells what it coordinated, not now and next (0.8.5)'
     /<div class="now">Handed Mouse the export crash and had Leia check the fix\.<\/div>/,
   );
   assert.doesNotMatch(told, /No current task|Next:/);
+  // Its row is tinted apart from the others.
+  assert.match(told, /<div class="agent coordinator">/);
+  assert.match(renderBoardBody({ ...view, agents: [base] }), /<div class="agent coordinator">/);
+  assert.match(renderBoardBody({ ...view, agents: [view.agents[1]!] }), /<div class="agent">/);
   // With no description yet, a coordinator shows nothing in their place.
   const quiet = renderBoardBody({ ...view, agents: [{ ...coordinator, today: null }] });
   assert.doesNotMatch(quiet, /No current task|Next:|class="now"/);

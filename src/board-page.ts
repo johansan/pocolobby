@@ -143,6 +143,9 @@ ${EMPTY_CSS}
 .agent .state { flex: 1 0 auto; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
 .agent .state .active { margin-left: auto; }
 .agent .pills { display: contents; }
+/* The coordinator's row, first in the list, on the sunk tone with its pills and chip on white (Johan chose B). */
+.agent.coordinator { background: var(--sunk); }
+.agent.coordinator .pill:not(.effort), .agent.coordinator .s-away { background: var(--surface); }
 .agent .who strong { font-family: var(--display); font-size: 16px; }
 .agent .now { grid-column: 2 / -1; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
 .agent .stall { display: block; color: var(--crit); font-size: 12.5px; }
@@ -454,7 +457,7 @@ function agentRow(row: AgentRow, view: BoardView): string {
         ? `<div class="next"><b>Next:</b> ${row.next.items.map(escape).join(', ')}${row.next.count > row.next.items.length ? ` and ${row.next.count - row.next.items.length} more` : ''}</div>`
         : '<div class="next"><b>Next:</b> nothing queued</div>';
   const usage = row.usage ? usageLine(row.usage, Date.parse(view.generated_at)) : '';
-  return `<div class="agent">${avatar}<div class="who"><strong>${escape(row.name)}</strong>${sessionPills(row.usage)}<span class="state"><span class="chip s-${row.chip}">${CHIP_LABELS[row.chip]}</span>${offline}<span class="active" title="Quarter hours with messages in the last 24 hours">${row.active === 'none' ? 'no messages' : `${escape(row.active)} active`}</span></span></div>${now || stall ? `<div class="now">${now}${stall}</div>` : ''}${next}${usage}${strip(row, view)}</div>`;
+  return `<div class="agent${row.coordinator ? ' coordinator' : ''}">${avatar}<div class="who"><strong>${escape(row.name)}</strong>${sessionPills(row.usage)}<span class="state"><span class="chip s-${row.chip}">${CHIP_LABELS[row.chip]}</span>${offline}<span class="active" title="Quarter hours with messages in the last 24 hours">${row.active === 'none' ? 'no messages' : `${escape(row.active)} active`}</span></span></div>${now || stall ? `<div class="now">${now}${stall}</div>` : ''}${next}${usage}${strip(row, view)}</div>`;
 }
 
 /**

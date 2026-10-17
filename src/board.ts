@@ -877,7 +877,7 @@ export class BoardService {
       .filter((agent) => !config.agents[agent.agent_id]?.hidden)
       .sort(
         (left, right) =>
-          Number(left.manage_rooms) - Number(right.manage_rooms) ||
+          Number(right.manage_rooms) - Number(left.manage_rooms) ||
           left.agent_id.localeCompare(right.agent_id),
       )
       .map((agent) => {

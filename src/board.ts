@@ -201,14 +201,19 @@ export function contextLabel(tokens: number): string {
     ? `${tokens / 1_000_000}M`
     : `${Math.round(tokens / 1000)}K`;
 }
-/** Model windows that have not reset yet, each with where an evenly spent week would be now. */
+/**
+ * Model windows in use that have not reset yet, each with where an evenly spent week would be
+ * now. A window at 0% is left out, on the board (Johan: "don't show fable usage if it's 0%") and
+ * in list_agents: on an account no agent runs Fable on, it would read far behind and invite work
+ * for the wrong reason (Vader).
+ */
 function paced(
   windows: ModelWindow[],
   now: number,
 ): { window: ModelWindow; pace: { line: number; lead: number } }[] {
   return windows.flatMap((window) => {
     const pace = weeklyPace(window.used_percentage, window.resets_at, now);
-    return pace ? [{ window, pace }] : [];
+    return pace && Math.round(window.used_percentage) > 0 ? [{ window, pace }] : [];
   });
 }
 /** A reading older than this no longer shows: the agent's session has not run for a day. */
@@ -244,10 +249,11 @@ export function usageView(
     model: reading.report.model ? modelLabel(reading.report.model) : null,
     context: contextLabelOf(reading.report),
     effort: reading.report.effort ?? null,
+    // A window not used at all says nothing worth showing (Johan: "don't show fable usage if it's 0%").
     windows: (reading.report.model_windows ?? []).flatMap((value) => {
       const shown = window(value);
       const model = reading.report.model;
-      return shown && model && windowCovers(model, value.name)
+      return shown && shown.left < 100 && model && windowCovers(model, value.name)
         ? [{ name: value.name, ...shown }]
         : [];
     }),

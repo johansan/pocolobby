@@ -146,11 +146,8 @@ export interface NotesSnapshot {
   fetched_at: string;
 }
 
-const clamp = (max: number) =>
-  z.string().transform((value) => {
-    const text = value.replace(/\s+/gu, ' ').trim();
-    return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
-  });
+/** A summary text on one line. Never cut: the prompt asks for short entries, and whatever the model writes shows whole (Johan: "do not cut anything on server"). */
+const line = z.string().transform((value) => value.replace(/\s+/gu, ' ').trim());
 const list = <T extends z.ZodType>(item: T, max: number) =>
   z.array(item).transform((items) => items.slice(0, max));
 /** Next items shown per agent; the count keeps every item the summary named. */
@@ -159,7 +156,8 @@ export const SHOWN_NEXT = 4;
 /**
  * What the summarizer writes: each agent's current task and what comes next for it, validated
  * after the model answers. Structure must match, or the last good summary stays; over-long
- * strings and lists are clipped visibly instead. `next: null` means the sources do not say,
+ * lists are shortened visibly instead (at most four next items, with how many there are). Texts
+ * are never cut; the request's token limit bounds the whole answer. `next: null` means the sources do not say,
  * which is not the same as an empty queue.
  */
 export const SummarySchema = z.object({
@@ -167,11 +165,11 @@ export const SummarySchema = z.object({
     z
       .object({
         agent_id: z.string().max(64),
-        now: clamp(120),
-        next: z.array(clamp(80)).nullable(),
-        // A coordinator's one or two sentences on what it has coordinated lately (0.8.5); a
-        // summary written before has none.
-        today: clamp(140).default(''),
+        now: line,
+        next: z.array(line).nullable(),
+        // A coordinator's sentence on what the team got done today (0.8.5); a summary written
+        // before has none.
+        today: line.default(''),
       })
       .transform(({ next, ...agent }) => ({
         ...agent,

@@ -101,11 +101,13 @@ ${EMPTY_CSS}
 .s-away { color: var(--muted); background: var(--sunk); }
 .s-wait { color: var(--wait); background: var(--wait-soft); }
 .s-coord { color: var(--brass); background: var(--brass-soft); }
-.accounts { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(max(240px, calc((100% - 20px) / 3)), 1fr)); }
+.accounts { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(max(240px, calc((100% - 20px) / 3)), 1fr)); align-items: start; }
 .account { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px 11px; display: grid; gap: 6px; align-content: start; min-width: 0; }
 .account strong { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account .facts { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
 .account .facts b { color: var(--ink); font-weight: 600; }
+/* A bar's numbers stay on one line under it (Johan: "fit this row on one row without break"). */
+.account .facts.line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .week { display: block; width: 100%; height: 16px; }
 .week .track { fill: var(--sunk); }
 .week .used { fill: var(--ok); }
@@ -404,16 +406,19 @@ function weekBar(
   return `<svg class="week" viewBox="0 0 100 16" preserveAspectRatio="none" role="img" aria-label="${escape(label)} ${used}% used, ${where}"><title>${where}: ${used}% used, target ${line}%</title>${parts.join('')}</svg>`;
 }
 
+/** The target, as a card writes it: "27% (🎯50%)" (Johan). */
+const TARGET = '<span role="img" aria-label="target" title="Target">🎯</span>';
+
 /** One small card per Claude account, up to three a row: its email, its week, its numbers. */
 function accountRows(view: BoardView): string {
   return `<div class="accounts">${view.accounts
     .map(
       (account) =>
-        `<div class="account"><strong title="${escape(account.account)}">${escape(account.account)}</strong>${weekBar({ ...account, used: account.week_used })}<span class="facts">Week <b>${account.week_used}% used</b> target ${account.line}% resets ${resetTime(account.week_resets_at)}</span>${account.windows.map((window) => `${weekBar(window, window.name)}<span class="facts">${escape(window.name)} <b>${window.used}% used</b> target ${window.line}%${Math.abs(Date.parse(window.resets_at) - Date.parse(account.week_resets_at)) >= 60 * 60_000 ? ` resets ${resetTime(window.resets_at)}` : ''}</span>`).join('')}${account.agents.length ? `<span class="facts">${account.agents.map(escape).join(', ')}</span>` : ''}</div>`,
+        `<div class="account"><strong title="${escape(account.account)}">${escape(account.account)}</strong>${weekBar({ ...account, used: account.week_used })}<span class="facts line"><b>${account.week_used}%</b> (${TARGET}${account.line}%) resets ${resetTime(account.week_resets_at)}</span>${account.windows.map((window) => `${weekBar(window, window.name)}<span class="facts line">${escape(window.name)} <b>${window.used}%</b> (${TARGET}${window.line}%)${Math.abs(Date.parse(window.resets_at) - Date.parse(account.week_resets_at)) >= 60 * 60_000 ? ` resets ${resetTime(window.resets_at)}` : ''}</span>`).join('')}${account.agents.length ? `<span class="facts">${account.agents.map(escape).join(', ')}</span>` : ''}</div>`,
     )
     .join(
       '',
-    )}</div><p class="legend">Each bar is an account's week. The mark is its target: how much of the week it should have used by now to use all of it exactly by its reset. Green: on target. Blue: room left. Orange: used ahead of target. Red: more than ${FAR_AHEAD} points ahead.${view.accounts.some((account) => account.windows.length) ? " A second bar named after a model, such as Fable, is that model's own weekly limit, which Claude counts apart from the week." : ''}</p>`;
+    )}</div><p class="legend">Each bar is an account's week, with the share used under it. The mark and 🎯 are its target: how much of the week it should have used by now to use all of it exactly by its reset. Green: on target. Blue: room left. Orange: used ahead of target. Red: more than ${FAR_AHEAD} points ahead.${view.accounts.some((account) => account.windows.length) ? " A second bar named after a model, such as Fable, is that model's own weekly limit, which Claude counts apart from the week." : ''}</p>`;
 }
 
 /** The session pills' icons: a spark for the model, pages for the context window, rising bars for the effort. */

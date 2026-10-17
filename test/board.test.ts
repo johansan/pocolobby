@@ -1159,20 +1159,27 @@ test('clipping, unknown agents, and unknown versus empty queues', () => {
     agents: [
       {
         agent_id: 'leia',
-        now: 'n'.repeat(200),
+        now: 'n'.repeat(300),
         next: Array.from({ length: 9 }, (_, i) => `item ${i}`),
       },
-      { agent_id: 'padme', now: 'n', next: [] },
+      { agent_id: 'padme', now: 'n'.repeat(150), next: ['x'.repeat(100)] },
       { agent_id: 'mouse', now: 'n', next: null },
     ],
   });
-  assert.equal(parsed.agents[0]!.now.length, 120);
-  assert.ok(parsed.agents[0]!.now.endsWith('…'));
+  // Texts over the prompt's lengths show whole (Johan: "do not cut anything on server").
+  assert.deepEqual(
+    [
+      parsed.agents[0]!.now.length,
+      parsed.agents[1]!.now.length,
+      parsed.agents[1]!.next![0]!.length,
+    ],
+    [300, 150, 100],
+  );
   assert.deepEqual(
     parsed.agents.map((agent) => [agent.next?.length ?? null, agent.next_count]),
     [
       [4, 9],
-      [0, 0],
+      [1, 1],
       [null, null],
     ],
   );
@@ -1200,7 +1207,7 @@ test('a coordinator’s row tells what it coordinated, not now and next (0.8.5)'
   assert.equal(
     SummarySchema.parse({ agents: [{ agent_id: 'v', now: '', next: [], today: 't'.repeat(300) }] })
       .agents[0]!.today.length,
-    140,
+    300,
   );
   const now = Date.parse('2026-10-16T12:00:00Z');
   const store = memoryStore(t, () => now);
@@ -1435,7 +1442,11 @@ test('accounts are paced against their weekly line, for the coordinator and the 
     html,
     /aria-label="Week 50% used, 7 points behind">.*?class="behind" x="50" y="3" width="7"/s,
   );
-  assert.match(html, /Week <b>65% used<\/b> target 57% resets <time/);
+  // Johan: "27% (🎯50%) resets Wed 21 Oct, 10:00", on one line.
+  assert.match(
+    html,
+    /<span class="facts line"><b>65%<\/b> \(<span role="img" aria-label="target" title="Target">🎯<\/span>57%\) resets <time/,
+  );
   // list_agents carries the same, for the coordinator's checks.
   assert.deepEqual(board.agentUsage(LOBBY, 'padme')!.seven_day, {
     used_percentage: 50,
@@ -1503,7 +1514,7 @@ test('a model’s own weekly window, such as Fable’s, is paced apart from the 
   assert.deepEqual(rows.leia, []);
   const html = renderBoardBody(view);
   assert.match(html, /aria-label="Fable 70% used, 13 points ahead"/);
-  assert.match(html, /Fable <b>70% used<\/b> target 57%<\/span>/);
+  assert.match(html, /Fable <b>70%<\/b> \(<span[^>]*>🎯<\/span>57%\)<\/span>/);
   // Fable's window resets with the week, so the row leaves the reset to the week's.
   assert.match(html, /<span>Fable <b>30% left<\/b><\/span>/);
   assert.match(html, /own weekly limit/);
@@ -1529,6 +1540,18 @@ test('a model’s own weekly window, such as Fable’s, is paced apart from the 
   assert.deepEqual(board.agentUsage(LOBBY, 'leia')!.model_windows, []);
   assert.deepEqual(board.view(LOBBY).accounts[0]!.windows, []);
   assert.doesNotMatch(renderBoardBody(board.view(LOBBY)), /own weekly limit/);
+  // A window at 0% is left out, on the board (Johan: "don't show fable usage if it's 0%") and in
+  // list_agents, where it would read far behind on accounts no agent runs Fable on (Vader).
+  board.recordUsage('my-team/vader', {
+    seven_day: week,
+    account: 'one@example.com',
+    model: 'claude-fable-5-1',
+    model_windows: [{ ...fable, used_percentage: 0.3 }],
+  });
+  assert.deepEqual(board.agentUsage(LOBBY, 'leia')!.model_windows, []);
+  const unused = board.view(LOBBY);
+  assert.deepEqual(unused.accounts[0]!.windows, []);
+  assert.deepEqual(unused.agents.find((row) => row.agent_id === 'vader')!.usage!.windows, []);
   board.recordUsage('my-team/padme', { seven_day: week, account: 'two@example.com' });
   assert.equal(board.agentUsage(LOBBY, 'padme')!.model_windows, null);
 });

@@ -44,14 +44,14 @@ Reconcile the sources: the notes are the plan; a newer report or assignment can 
 
 Write plain English, short phrases, no Markdown, no emoji. Leave out commit hashes. Do not invent tasks or owners. Do not state times, dates or deadlines you were not given.
 
-Write for the owner, who reads the board without the notes at hand and does not know their internal labels. Never copy row or step numbers, section or milestone codes, file names or other shorthand from the notes, such as "F02 M3" or "the 902-section". Say in plain words what the work is about, such as "the slide export for large decks", instead.
+Write for the owner, who reads the board without the notes at hand and does not know their internal labels. Never copy row, question or step numbers, section or milestone codes, batch names, file names or other shorthand from the notes, such as "F02 M3", "Q15 milestone 2" or "the 902-section". Say in plain words what the work is about, such as "the slide export for large decks", using what the sources say about that row or task. When they say nothing more than its code, name the area of the product instead, or leave the item out.
 
 For each agent in agents, one entry with the same agent_id:
 - now: what it is working on and why, in one phrase, such as "Speeding up slide export so large decks open in seconds"; "" when the sources do not say. Give the reason only when the sources state it.
 - next: the concrete tasks queued for it after the current one, in order, such as "Then ...", "next ...", or open rows it owns that are neither done nor blocked. Leave out done or landed work, ideas, and rows waiting for a decision or for another agent. [] only when the sources say nothing is queued; null when they do not say enough to tell.
 - today: for an agent with coordinator true, one short plain sentence on what the team got done today under its coordination according to the messages, by area and not message by message, such as "Fixed the export crash on Windows and moved slide layout work to Luke". "" for every other agent, and "" when the messages say nothing about it.
 
-Limits in characters, shorter is better: now 120, each next item 80, today 140.`;
+Aim for these lengths in characters: now 120, each next item 80, today 140. Shorter is better, so leave out detail first. But never cut an entry off: when it needs more words to be complete, write them. Every entry ends as a whole phrase or sentence, never with "…" or a word broken off.`;
 
 const text = (description: string) => ({ type: 'string', description });
 const nullable = (schema: object, description: string) => ({
@@ -66,19 +66,19 @@ const object = (properties: Record<string, object>) => ({
 });
 /**
  * The output format. The API accepts no length limits in a schema, so the descriptions state
- * them and SummarySchema enforces them after the answer.
+ * the lengths to aim for; nothing is cut after the answer.
  */
 export const OUTPUT_SCHEMA = object({
   agents: {
     type: 'array',
     items: object({
       agent_id: text('Exactly as given in agents'),
-      now: text('At most 120 characters'),
+      now: text('About 120 characters, a complete phrase'),
       next: nullable(
         { type: 'array', items: { type: 'string' } },
-        'Each item at most 80 characters; [] when nothing is queued; null when unknown',
+        'Each item about 80 characters, a complete phrase; [] when nothing is queued; null when unknown',
       ),
-      today: text('For a coordinator: at most 140 characters, one sentence; otherwise ""'),
+      today: text('For a coordinator: about 140 characters, one complete sentence; otherwise ""'),
     }),
   },
 });

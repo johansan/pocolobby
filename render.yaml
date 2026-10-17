@@ -1,0 +1,23 @@
+# A PocoLobby broker of your own on Render, for the Deploy to Render button; see
+# docs/SELF-HOSTING.md. One instance only: a service with a disk cannot scale, and SQLite has one
+# writer. Render asks for POCOLOBBY_ADMIN_TOKEN when it creates the service.
+services:
+  - type: web
+    name: pocolobby
+    runtime: docker
+    plan: 0.5c-512mb
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    numInstances: 1
+    autoDeployTrigger: 'off'
+    disk:
+      name: pocolobby-data
+      mountPath: /data
+      sizeGB: 3
+    envVars:
+      # The container listens on 8787; Render routes to the port PORT names.
+      - key: PORT
+        value: '8787'
+      # The token in the owner file that pocolobby init wrote on your computer.
+      - key: POCOLOBBY_ADMIN_TOKEN
+        sync: false

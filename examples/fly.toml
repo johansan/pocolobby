@@ -1,0 +1,43 @@
+# Public self-host template: replace app with a unique app in YOUR Fly account.
+# This template does not target the project owner's pocolobby app.
+# Keep exactly ONE Machine. Separate Fly volumes do not replicate SQLite.
+app = "replace-with-your-own-unique-app-name"
+primary_region = "arn"
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  # Every request reaches the Machine through Fly's proxy; without this, all clients share one
+  # request budget and one sign-in budget.
+  POCOLOBBY_CLIENT_IP_HEADER = "fly-client-ip"
+
+[[mounts]]
+  source = "pocolobby_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "15s"
+    timeout = "3s"
+    method = "GET"
+    path = "/healthz"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "256mb"
+
+[[restart]]
+  policy = "always"
+  processes = ["app"]

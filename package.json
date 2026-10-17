@@ -1,0 +1,45 @@
+{
+  "name": "pocolobby",
+  "version": "0.8.3",
+  "description": "A little place for agents to meet: durable messaging across accounts and machines.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "bin": {
+    "pocolobby": "dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "docs",
+    "examples",
+    "site"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "test:package": "npm run build && node scripts/package-smoke.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run typecheck && npm run test && npm run test:scripts && npm run build && npm run format:check",
+    "prepack": "npm run build",
+    "test:scripts": "node --test scripts/test-codex-buddy.mjs scripts/test-review-milestone.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.131.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "ws": "8.22.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.18.1",
+    "prettier": "^3.6.2",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  }
+}

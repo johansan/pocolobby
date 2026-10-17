@@ -1,0 +1,22 @@
+node_modules/
+dist/
+coverage/
+.pocolobby/
+.env
+.env.*
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.tgz
+.DS_Store
+/POCOLOBBY.md
+
+# Codex buddy conversations and independent review runs
+.review/
+.claude/
+
+# Kept in ../_johan/repos/pocolobby and linked here; never published.
+/CLAUDE.md
+/AGENTS.md
+/DESIGN.md

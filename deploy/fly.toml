@@ -1,0 +1,45 @@
+# A PocoLobby broker of your own on Fly.io; see docs/SELF-HOSTING.md.
+# Copy this file over fly.toml in the repository root, then set app to your own app name and
+# primary_region to the region nearest you (fly platform regions lists them).
+# Keep exactly ONE Machine: separate Fly volumes do not replicate SQLite.
+app = "my-team-lobby"
+primary_region = "fra"
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  # Every request arrives through Fly's proxy, so its client-address header is trustworthy;
+  # the request limits count each client by it.
+  POCOLOBBY_CLIENT_IP_HEADER = "fly-client-ip"
+
+[[mounts]]
+  source = "pocolobby_data"
+  destination = "/data"
+  initial_size = "3gb"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "15s"
+    timeout = "3s"
+    method = "GET"
+    path = "/healthz"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "256mb"
+
+[[restart]]
+  policy = "always"
+  processes = ["app"]

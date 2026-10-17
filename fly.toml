@@ -1,0 +1,48 @@
+# Keep exactly ONE Machine. Separate Fly volumes do not replicate SQLite.
+app = "pocolobby"
+primary_region = "arn"
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  # 3 GiB of attachments on the 5 GB volume (extended 2026-10-15)
+  POCOLOBBY_ATTACHMENT_LOBBY_BYTES = "3221225472"
+  # Every request arrives through Fly's proxy, so its client-address header is trustworthy;
+  # the sign-in limits count attempts per client.
+  POCOLOBBY_CLIENT_IP_HEADER = "fly-client-ip"
+  # Boards at <lobby>.pocolobby.com; without it a broker has no boards or console.
+  POCOLOBBY_BOARD_DOMAIN = "pocolobby.com"
+  # The lobby owner console and its sign-in mail (0.5.0); POSTMARK_TOKEN is a secret.
+  POCOLOBBY_CONSOLE_ORIGIN = "https://knock.pocolobby.com"
+  POCOLOBBY_MAIL_FROM = "PocoLobby <signin@pocolobby.com>"
+
+[[mounts]]
+  source = "pocolobby_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "15s"
+    timeout = "3s"
+    method = "GET"
+    path = "/healthz"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "256mb"
+
+[[restart]]
+  policy = "always"
+  processes = ["app"]

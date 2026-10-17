@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-152 -20 1005 1005">
+  <title>PocoLobby</title>
+  <path d="M346 217 C343 163 355 121 401 87" fill="none" stroke="#6292e0" stroke-width="62" stroke-linecap="round"/>
+  <circle cx="439" cy="62" r="62" fill="#f2a184"/>
+  <path d="M350 181C602 181 700 264.7 700 480C700 695.3 602 779 350 779C98 779 0 695.3 0 480C0 264.7 98 181 350 181Z" fill="#6292e0"/>
+  <rect x="0" y="480" width="183" height="525" fill="#6292e0"/>
+  <path d="M410.5 249C582.4 249 671 320.4 671 459C671 597.6 582.4 669 410.5 669C238.6 669 150 597.6 150 459C150 320.4 238.6 249 410.5 249Z" fill="#ffffff"/>
+  <ellipse cx="288.5" cy="542" rx="55.5" ry="75" fill="#17181d"/>
+  <ellipse cx="604" cy="505.5" rx="37" ry="72.5" fill="#17181d"/>
+  <ellipse cx="309" cy="501" rx="13" ry="17" fill="#ffffff"/>
+  <ellipse cx="614" cy="467" rx="10.5" ry="15.5" fill="#ffffff"/>
+</svg>

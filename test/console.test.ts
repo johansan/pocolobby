@@ -19,6 +19,7 @@ import { MAX_BOARD_SOURCES } from '../src/board-model.js';
 import { encodePng } from '../src/png.js';
 import { NewLobbyId } from '../src/protocol.js';
 import { browserFixture, call, CONSOLE, DOMAIN, LOBBY, OWNER_EMAIL } from './browser-fixture.js';
+import { temporaryFolder } from './temp.js';
 
 const rejectsCode = (code: string) => (error: unknown) =>
   error instanceof LobbyError && error.code === code;
@@ -155,8 +156,7 @@ test('codes expire, five wrong tries spend a code, and a resend keeps the wrong-
 });
 
 test('the hourly mail ceiling counts only real mails and answers every address alike', async (t) => {
-  const directory = await mkdtemp(join(tmpdir(), 'pocolobby-ceiling-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = temporaryFolder('pocolobby-ceiling-');
   const path = join(directory, 'lobby.db');
   const now = Date.parse('2026-10-16T07:00:00Z');
   let store = new LobbyStore(path, { now: () => now });
@@ -1243,8 +1243,7 @@ test('operator CLI: allow, grant, revoke, enable, accounts and approved reposito
 });
 
 test('recovery mode ends every browser session and waits for the operator to enable accounts', async (t) => {
-  const directory = await mkdtemp(join(tmpdir(), 'pocolobby-console-recover-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = temporaryFolder('pocolobby-console-recover-');
   const store = new LobbyStore(join(directory, 'lobby.db'));
   store.createLobby(LOBBY);
   t.after(() => store.close());

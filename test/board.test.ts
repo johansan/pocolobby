@@ -32,6 +32,7 @@ import { hostKind } from '../src/server.js';
 import { LobbyStore } from '../src/store.js';
 import { LobbyError, type SendInput } from '../src/protocol.js';
 import { browserFixture, call, DOMAIN, LOBBY, OWNER_EMAIL } from './browser-fixture.js';
+import { temporaryFolder } from './temp.js';
 
 // ---------------------------------------------------------------------------------------------
 // A fake GitHub: refs move between commits, each commit has its own tree, blobs by SHA.
@@ -1874,8 +1875,7 @@ test('owner CLI: sources, agents, and a status without secrets', async (t) => {
 
 test('a board needs a lobby ID that is also a DNS label', async (t) => {
   // Only a lobby made before 0.5.0 can still have such a name.
-  const directory = await mkdtemp(join(tmpdir(), 'pocolobby-legacy-label-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = temporaryFolder('pocolobby-legacy-label-');
   const path = join(directory, 'lobby.db');
   new LobbyStore(path).close();
   const legacy = new DatabaseSync(path);

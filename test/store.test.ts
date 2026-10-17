@@ -1,16 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
-import {
-  mkdirSync,
-  mkdtempSync,
-  openSync,
-  closeSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, openSync, closeSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test, type TestContext } from 'node:test';
@@ -26,6 +16,7 @@ import {
   qualifyAgent,
   type SendInput,
 } from '../src/protocol.js';
+import { temporaryFolder } from './temp.js';
 
 const LOBBY = 'my-team';
 /** An agent's principal in LOBBY, for tests where a second lobby makes bare names ambiguous. */
@@ -63,9 +54,7 @@ const memory = (t: TestContext, options: ConstructorParameters<typeof LobbyStore
   return store;
 };
 const directory = (t: TestContext) => {
-  const path = mkdtempSync(join(tmpdir(), 'pocolobby-store-'));
-  t.after(() => rmSync(path, { recursive: true, force: true }));
-  return path;
+  return temporaryFolder('pocolobby-store-');
 };
 test('committed messages survive SIGKILL before notification dispatch', (t) => {
   const path = join(directory(t), 'lobby.sqlite');
@@ -80,7 +69,11 @@ test('committed messages survive SIGKILL before notification dispatch', (t) => {
     ['--import', 'tsx', '--input-type=module', '-e', script],
     { cwd: process.cwd(), encoding: 'utf8', timeout: 15_000 },
   );
-  assert.equal(child.signal, 'SIGKILL', child.stderr);
+  // Windows ends a killed process with a failing status and no signal.
+  assert.ok(
+    child.signal === 'SIGKILL' || (process.platform === 'win32' && child.status !== 0),
+    child.stderr,
+  );
   const reopened = new LobbyStore(path);
   t.after(() => reopened.close());
   assert.equal(reopened.messages('backend').items[0]?.content, 'committed before crash');

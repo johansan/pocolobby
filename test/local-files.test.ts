@@ -388,7 +388,11 @@ test('save_to creates missing directories only where the whole path passes the r
   // A link to nothing is not taken for a missing directory, and a file is no parent.
   await symlink(join(user, 'gone'), join(user, 'dangling'));
   await refusedSave(join(user, 'dangling', 'new'), /symbolic link to nothing/);
-  await refusedSave(join(user, 'notes', 'report.md', 'new'), /cannot be checked \(ENOTDIR\)/);
+  // Windows checks a path below a file without complaint and refuses when creating it.
+  await refusedSave(
+    join(user, 'notes', 'report.md', 'new'),
+    /cannot be (checked|created) \(ENOTDIR\)/,
+  );
   if (process.platform === 'darwin')
     await refusedSave(join(user, 'Library', 'Preferences', 'new'), /inside ~\/Library/);
 });

@@ -584,12 +584,20 @@ try {
   await Promise.allSettled(hosts.map((host) => host.close()));
   await updated?.close();
   if (server && server.exitCode === null) {
+    // Settles either way: on Windows the exit event never came, and with nothing else left to
+    // wait on, Node ended the script on its unsettled await (exit code 13).
     await new Promise((resolveExit) => {
-      server.once('exit', resolveExit);
+      const timer = setTimeout(() => {
+        server.kill('SIGKILL');
+        setTimeout(resolveExit, 1000);
+      }, 3000);
+      server.once('exit', () => {
+        clearTimeout(timer);
+        resolveExit();
+      });
       server.kill('SIGTERM');
-      const timer = setTimeout(() => server.kill('SIGKILL'), 3000);
-      timer.unref();
     });
   }
-  await rm(directory, { recursive: true, force: true });
+  // Windows may still hold the database for a moment after the broker ends.
+  await rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }

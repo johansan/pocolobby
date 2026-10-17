@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { test, type TestContext } from 'node:test';
 import { WebSocket } from 'ws';
 import { NotificationSchema } from '../src/adapters/claude.js';
@@ -30,6 +29,7 @@ import {
   type StoredMessage,
 } from '../src/protocol.js';
 import { createLobby } from './lobby.js';
+import { temporaryFolder } from './temp.js';
 
 const sha = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 /** A small screenshot-like PNG; the seed makes distinct contents, noise makes it large. */
@@ -53,9 +53,7 @@ const code = (expected: string) => (error: unknown) => {
   return true;
 };
 const temporary = (t: TestContext) => {
-  const path = mkdtempSync(join(tmpdir(), 'pocolobby-attachments-'));
-  t.after(() => rmSync(path, { recursive: true, force: true }));
-  return path;
+  return temporaryFolder('pocolobby-attachments-');
 };
 function storeFixture(t: TestContext, options: ConstructorParameters<typeof LobbyStore>[1] = {}) {
   const directory = temporary(t);
@@ -372,7 +370,7 @@ test('retention, unsent uploads and stray files are collected; shared content st
   const old = new Date(Date.now() - 2 * 60 * minute);
   utimesSync(stray, old, old);
   store.collectAttachments();
-  assert.deepEqual(readdirSync(directory), [young.split('/').at(-1)]);
+  assert.deepEqual(readdirSync(directory), [basename(young)]);
 });
 
 // ----- Over HTTP and WebSocket -----

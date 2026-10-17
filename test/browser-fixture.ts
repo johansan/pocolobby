@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
-import { mkdtemp, rm } from 'node:fs/promises';
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { TestContext } from 'node:test';
 import { MailError, type Mailer } from '../src/mail.js';
 import { startServer, type ServerOptions } from '../src/server.js';
 import { LobbyStore } from '../src/store.js';
+import { temporaryFolder } from './temp.js';
 
 /**
  * A broker with boards on `<lobby>.board.test` and the console on `http://board.test`, a mailer
@@ -100,8 +99,7 @@ export async function browserFixture(
   prepare?: (store: LobbyStore) => Promise<void> | void,
   options: Partial<ServerOptions> = {},
 ): Promise<Fixture> {
-  const directory = await mkdtemp(join(tmpdir(), 'pocolobby-browser-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = temporaryFolder('pocolobby-browser-');
   const clock = { now: Date.parse('2026-10-16T07:00:00Z') };
   const database = join(directory, 'lobby.db');
   const seed = new LobbyStore(database, { now: () => clock.now });

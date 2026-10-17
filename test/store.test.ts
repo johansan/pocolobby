@@ -936,11 +936,17 @@ test('bootstrap is paused when requested and bounded retries survive a broker re
   t.after(() => store.close());
   store.claimRuntime('backend', binding.runtime_id, binding.generation);
   assert.equal(store.nextNotification('backend', binding), null);
+  // A bootstrap is retried at the schedule's longest delay, not at a delivery's first.
   now = 10;
-  assert.equal(store.nextNotification('backend', binding)?.type, 'bootstrap');
+  assert.equal(store.nextNotification('backend', binding), null);
   now = 30;
   assert.equal(store.nextNotification('backend', binding)?.type, 'bootstrap');
   now = 60;
+  assert.equal(store.nextNotification('backend', binding)?.type, 'bootstrap');
+  now = 89;
+  assert.equal(store.nextNotification('backend', binding), null);
+  assert.equal(store.agent('backend').notification_attention_required, false);
+  now = 90;
   assert.equal(store.nextNotification('backend', binding), null);
   assert.equal(store.agent('backend').notification_attention_required, true);
   store.retryNotifications('backend');

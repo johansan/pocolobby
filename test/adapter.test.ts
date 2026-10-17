@@ -515,6 +515,37 @@ test('bootstrap retries preserve loaded context while a changed nonce invalidate
   );
 });
 
+test('a bootstrap retry with the nonce the model already echoed is not written to the host', async (t) => {
+  const f = await fixture();
+  t.after(() => f.close());
+  f.sockets[0]!.send(JSON.stringify(f.event()));
+  await until(() => f.notifications.length === 1);
+  await f.host.callTool({ name: 'get_context', arguments: {} });
+  assert.notEqual(
+    (
+      await f.host.callTool({
+        name: 'ready',
+        arguments: { context_revision: 3, probe_nonce: f.nonce },
+      })
+    ).isError,
+    true,
+  );
+  // The broker's retry overtook ready: the bridge takes receipt of it and shows nothing,
+  // while a bootstrap with a new nonce is a new bootstrap and is shown.
+  const late = f.event();
+  f.sockets[0]!.send(JSON.stringify(late));
+  const replacementNonce = randomUUID();
+  f.sockets[0]!.send(JSON.stringify({ ...f.event(), probe_nonce: replacementNonce }));
+  await until(() => f.notifications.length === 2);
+  assert.match(f.notifications[1]!.content, new RegExp(replacementNonce));
+  assert.deepEqual(
+    f.receipts
+      .filter((receipt) => receipt.notification_id === late.notification_id)
+      .map((receipt) => receipt.type),
+    ['adapter_received'],
+  );
+});
+
 test('notifications require lobby and room identity and reject mixed-lobby messages', async (t) => {
   const f = await fixture();
   t.after(() => f.close());

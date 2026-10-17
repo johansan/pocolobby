@@ -323,6 +323,7 @@ export class LobbyStore {
   private readonly clock: () => number;
   private readonly infoDelay: number;
   private readonly retries: number[];
+  private readonly bootstrapRetry: number;
   private readonly maxPending: number;
   private readonly maxAgents: number;
   private readonly maxLobbies: number;
@@ -351,6 +352,7 @@ export class LobbyStore {
     this.clock = options.now ?? Date.now;
     this.infoDelay = options.infoDelayMs ?? 1_000;
     this.retries = [...(options.retryDelaysMs ?? [30_000, 120_000, 300_000])];
+    this.bootstrapRetry = Math.max(...this.retries);
     this.maxPending = options.maxPendingBytes ?? 4 * 1024 * 1024;
     this.maxAgents = options.maxAgents ?? 100;
     this.maxLobbies = options.maxLobbies ?? 100;
@@ -2741,9 +2743,13 @@ export class LobbyStore {
         const attempt = Number(agent.bootstrap_attempts);
         if (attempt >= this.retries.length || Number(agent.bootstrap_next_at) > now) return null;
         event.probe_nonce = String(agent.probe_nonce);
+        // A model's bootstrap, with its reconciliation, takes longer than a delivery's first
+        // retry delay, and a retry behind it reached the session as a second bootstrap with
+        // the same nonce after ready, costing a turn. So a bootstrap is retried at the
+        // schedule's longest delay instead.
         this.run(
           'UPDATE agents SET bootstrap_attempts=bootstrap_attempts+1,bootstrap_next_at=? WHERE agent_id=?',
-          now + this.retries[attempt]!,
+          now + this.bootstrapRetry,
           id,
         );
       } else {

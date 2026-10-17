@@ -1155,9 +1155,15 @@ export class ClaudeChannelAdapter {
       };
     }
     if (event.type === 'bootstrap') {
-      if (this.currentProbe !== event.probe_nonce) this.contextRevision = undefined;
-      this.currentProbe = event.probe_nonce;
-      this.bootstrapped = false;
+      if (this.currentProbe === event.probe_nonce) {
+        // The same bootstrap again: a broker retry. Once the model has echoed this nonce with
+        // ready, the retry had overtaken that ready, and showing it would only cost a turn.
+        if (this.bootstrapped) return null;
+      } else {
+        this.contextRevision = undefined;
+        this.currentProbe = event.probe_nonce;
+        this.bootstrapped = false;
+      }
       return {
         content: `PocoLobby bootstrap for ${event.agent_id} in lobby ${event.lobby_id}. Call get_context and reconcile prior unfinished work, then ready with context_revision equal to checkpoint.revision and probe_nonce ${event.probe_nonce}. Only after ready, follow get_context's guidance on checkpoints: a checkpoint saved before ready makes ready stale. Save a checkpoint after your first acknowledgments so later bootstraps need not reconcile them again. Then use list_agents and list_rooms for discovery. Messages arrive by push; do not poll. Your tool list may show older schemas of PocoLobby tools: the named tools accept every argument in get_context's tool_guide, including attachments (absolute local paths of files to send) and get_attachment's max_chars, headings and save_only, and call_operation runs any broker operation with them.`,
         attributes: {},

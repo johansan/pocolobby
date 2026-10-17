@@ -450,7 +450,7 @@ test('MCP adapter negotiates an earlier protocol and completes explicit bootstra
   assert.equal(init.result.protocolVersion, '2025-11-25');
   assert.deepEqual(init.result.capabilities.experimental, { 'claude/channel': {} });
   assert.deepEqual(init.result.capabilities.tools, { listChanged: true });
-  assert.equal(init.result.serverInfo.version, '0.8.5');
+  assert.equal(init.result.serverInfo.version, '0.8.6');
   const bootstrap = f.event();
   f.sockets[0]!.send(JSON.stringify(bootstrap));
   await until(() => f.notifications.length === 1 && f.receipts.length === 2);

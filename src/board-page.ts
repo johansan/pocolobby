@@ -102,7 +102,7 @@ ${EMPTY_CSS}
 .s-wait { color: var(--wait); background: var(--wait-soft); }
 .s-coord { color: var(--brass); background: var(--brass-soft); }
 .accounts { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(max(240px, calc((100% - 20px) / 3)), 1fr)); }
-.account { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px 11px; display: grid; gap: 6px; min-width: 0; }
+.account { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px 11px; display: grid; gap: 6px; align-content: start; min-width: 0; }
 .account strong { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account .facts { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
 .account .facts b { color: var(--ink); font-weight: 600; }
@@ -337,10 +337,17 @@ function resetTime(iso: string): string {
  * 09:00". Under a fifth left is marked.
  */
 function usageLine(usage: UsageView, now: number): string {
-  const window = (label: string, value: UsageView['five_hour']) =>
+  const window = (label: string, value: UsageView['five_hour'], resets = true) =>
     value
-      ? `${label} <b${value.left < 20 ? ' class="low"' : ''}>${value.left}% left</b> resets ${resetTime(value.resets_at)}`
+      ? `${label} <b${value.left < 20 ? ' class="low"' : ''}>${value.left}% left</b>${resets ? ` resets ${resetTime(value.resets_at)}` : ''}`
       : '';
+  // A model window resetting with the week (Fable's does) leaves its reset to the week's.
+  const sameReset = (value: UsageView['five_hour']) =>
+    Boolean(
+      value &&
+      usage.seven_day &&
+      Math.abs(Date.parse(value.resets_at) - Date.parse(usage.seven_day.resets_at)) < 60 * 60_000,
+    );
   const account = usage.account
     ? `${escape(usage.account)}${usage.plan ? ` (${escape(usage.plan)})` : ''}`
     : '';
@@ -349,6 +356,8 @@ function usageLine(usage: UsageView, now: number): string {
     account,
     window('5h', usage.five_hour),
     window('Week', usage.seven_day),
+    // The weekly window of the model it runs, when that family has its own: Fable's for Fable.
+    ...usage.windows.map((value) => window(escape(value.name), value, !sameReset(value))),
     observed >= 30 * 60_000 ? `as of ${age(observed)} ago` : '',
   ].filter(Boolean);
   return `<div class="usage">${parts.map((part) => `<span>${part}</span>`).join('')}</div>`;
@@ -367,9 +376,12 @@ const FAR_AHEAD = 20;
  * blue for the room it left before it; all green within 5 points of the mark. Drawn in SVG, whose
  * sizes are attributes, as the page's style policy allows no inline styles.
  */
-function weekBar(account: BoardView['accounts'][number]): string {
+function weekBar(
+  account: Pick<BoardView['accounts'][number], 'line' | 'lead' | 'state'> & { used: number },
+  label = 'Week',
+): string {
   const clamp = (value: number) => Math.min(100, Math.max(0, value));
-  const used = clamp(account.week_used);
+  const used = clamp(account.used);
   const line = clamp(account.line);
   const rect = (name: string, x: number, width: number, y = 3, height = 10) =>
     `<rect class="${name}" x="${x}" y="${y}" width="${width}" height="${height}"/>`;
@@ -389,7 +401,7 @@ function weekBar(account: BoardView['accounts'][number]): string {
     account.state === 'on'
       ? 'on pace'
       : `${Math.abs(account.lead)} points ${account.state === 'ahead' ? 'ahead' : 'behind'}`;
-  return `<svg class="week" viewBox="0 0 100 16" preserveAspectRatio="none" role="img" aria-label="Week ${used}% used, ${where}"><title>${where}: ${used}% used, target ${line}%</title>${parts.join('')}</svg>`;
+  return `<svg class="week" viewBox="0 0 100 16" preserveAspectRatio="none" role="img" aria-label="${escape(label)} ${used}% used, ${where}"><title>${where}: ${used}% used, target ${line}%</title>${parts.join('')}</svg>`;
 }
 
 /** One small card per Claude account, up to three a row: its email, its week, its numbers. */
@@ -397,11 +409,11 @@ function accountRows(view: BoardView): string {
   return `<div class="accounts">${view.accounts
     .map(
       (account) =>
-        `<div class="account"><strong title="${escape(account.account)}">${escape(account.account)}</strong>${weekBar(account)}<span class="facts">Week <b>${account.week_used}% used</b> target ${account.line}% resets ${resetTime(account.week_resets_at)}</span>${account.agents.length ? `<span class="facts">${account.agents.map(escape).join(', ')}</span>` : ''}</div>`,
+        `<div class="account"><strong title="${escape(account.account)}">${escape(account.account)}</strong>${weekBar({ ...account, used: account.week_used })}<span class="facts">Week <b>${account.week_used}% used</b> target ${account.line}% resets ${resetTime(account.week_resets_at)}</span>${account.windows.map((window) => `${weekBar(window, window.name)}<span class="facts">${escape(window.name)} <b>${window.used}% used</b> target ${window.line}%${Math.abs(Date.parse(window.resets_at) - Date.parse(account.week_resets_at)) >= 60 * 60_000 ? ` resets ${resetTime(window.resets_at)}` : ''}</span>`).join('')}${account.agents.length ? `<span class="facts">${account.agents.map(escape).join(', ')}</span>` : ''}</div>`,
     )
     .join(
       '',
-    )}</div><p class="legend">Each bar is an account's week. The mark is its target: how much of the week it should have used by now to use all of it exactly by its reset. Green: on target. Blue: room left. Orange: used ahead of target. Red: more than ${FAR_AHEAD} points ahead.</p>`;
+    )}</div><p class="legend">Each bar is an account's week. The mark is its target: how much of the week it should have used by now to use all of it exactly by its reset. Green: on target. Blue: room left. Orange: used ahead of target. Red: more than ${FAR_AHEAD} points ahead.${view.accounts.some((account) => account.windows.length) ? " A second bar named after a model, such as Fable, is that model's own weekly limit, which Claude counts apart from the week." : ''}</p>`;
 }
 
 /** The session pills' icons: a spark for the model, pages for the context window, rising bars for the effort. */

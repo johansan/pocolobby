@@ -44,12 +44,14 @@ Reconcile the sources: the notes are the plan; a newer report or assignment can 
 
 Write plain English, short phrases, no Markdown, no emoji. Leave out commit hashes. Do not invent tasks or owners. Do not state times, dates or deadlines you were not given.
 
-For each agent in agents, one entry with the same agent_id:
-- now: its current task, or "" when the sources do not say.
-- next: the concrete tasks queued for it after the current one, in order, such as "Then ...", "next ...", or open rows it owns that are neither done nor blocked. Leave out done or landed work, ideas, and rows waiting for a decision or for another agent. [] only when the sources say nothing is queued; null when they do not say enough to tell.
-- today: for an agent with coordinator true, one or two plain sentences on what it has coordinated according to the messages: the work it handed out and what came back finished, by area, not by message. "" for every other agent, and "" when the messages say nothing about it.
+Write for the owner, who reads the board without the notes at hand and does not know their internal labels. Never copy row or step numbers, section or milestone codes, file names or other shorthand from the notes, such as "F02 M3" or "the 902-section". Say in plain words what the work is about, such as "the slide export for large decks", instead.
 
-Limits in characters, shorter is better: now 120, each next item 80, today 240.`;
+For each agent in agents, one entry with the same agent_id:
+- now: what it is working on and why, in one phrase, such as "Speeding up slide export so large decks open in seconds"; "" when the sources do not say. Give the reason only when the sources state it.
+- next: the concrete tasks queued for it after the current one, in order, such as "Then ...", "next ...", or open rows it owns that are neither done nor blocked. Leave out done or landed work, ideas, and rows waiting for a decision or for another agent. [] only when the sources say nothing is queued; null when they do not say enough to tell.
+- today: for an agent with coordinator true, one short plain sentence on what the team got done today under its coordination according to the messages, by area and not message by message, such as "Fixed the export crash on Windows and moved slide layout work to Luke". "" for every other agent, and "" when the messages say nothing about it.
+
+Limits in characters, shorter is better: now 120, each next item 80, today 140.`;
 
 const text = (description: string) => ({ type: 'string', description });
 const nullable = (schema: object, description: string) => ({
@@ -76,7 +78,7 @@ export const OUTPUT_SCHEMA = object({
         { type: 'array', items: { type: 'string' } },
         'Each item at most 80 characters; [] when nothing is queued; null when unknown',
       ),
-      today: text('For a coordinator: at most 240 characters, one or two sentences; otherwise ""'),
+      today: text('For a coordinator: at most 140 characters, one sentence; otherwise ""'),
     }),
   },
 });

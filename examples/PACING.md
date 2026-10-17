@@ -17,10 +17,14 @@ Skip an account whose week is stale (no fresh report for 15 minutes): its number
   only if it is still ahead six hours later.
 - When an account is behind (lead below -5), give its agents more work, resuming rested workers
   first.
+- Some models have a weekly limit of their own, apart from the week: usage.model_windows lists
+  them per account (Fable's, for example), each with its own line, lead and pace. For an agent
+  running such a model, pace on that window as well as the week, since it can run out first.
+  When it is ahead, switch that agent to another model or rest it, and skip a stale window.
 - Note in your checkpoint whom you rested and why, so a repeated check never rests another by
   mistake.
 ```
 
 Give the coordinator an hourly schedule if it has none, for example `schedule_message` to itself with `{"time_zone": "Europe/Stockholm", "times": ["00:47", "01:47", "…", "23:47"]}` and the content "Pacing check: read list_agents and apply the pacing rules in your role."
 
-The board's Accounts section shows the same numbers: one card per account, a bar of its week with a mark at the target, green on target, blue for room left, orange ahead and red more than 20 points ahead.
+The board's Accounts section shows the same numbers: one card per account, a bar of its week with a mark at the target, green on target, blue for room left, orange ahead and red more than 20 points ahead. From 0.8.6 a card has a second bar for each model window, such as Fable's.

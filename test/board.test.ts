@@ -1200,7 +1200,7 @@ test('a coordinator’s row tells what it coordinated, not now and next (0.8.5)'
   assert.equal(
     SummarySchema.parse({ agents: [{ agent_id: 'v', now: '', next: [], today: 't'.repeat(300) }] })
       .agents[0]!.today.length,
-    240,
+    140,
   );
   const now = Date.parse('2026-10-16T12:00:00Z');
   const store = memoryStore(t, () => now);
@@ -1328,6 +1328,7 @@ test('each agent row shows its plan usage, the account only on a private board',
     model: null,
     context: null,
     effort: null,
+    windows: [],
     observed_at: '2026-10-16T18:00:00.000Z',
   });
   assert.equal(board.view(LOBBY).agents.find((agent) => agent.agent_id === 'mouse')!.usage, null);
@@ -1453,6 +1454,83 @@ test('accounts are paced against their weekly line, for the coordinator and the 
   );
   // Nothing is sent to anyone: the coordinator reads it at its own checks.
   assert.deepEqual(store.messages('vader').items, []);
+});
+
+test('a model’s own weekly window, such as Fable’s, is paced apart from the week (0.8.6)', (t) => {
+  // Johan: "the usage for fable is a bit different than other models. we can only use 50% of our
+  // weekly usage for it."
+  let now = Date.parse('2026-10-16T12:00:00Z');
+  const store = memoryStore(t, () => now);
+  populate(store);
+  const board = service(t, store, () => now, {});
+  const resets = (now + 3 * 24 * 60 * 60_000) / 1000;
+  const iso = (ms: number) => new Date(ms).toISOString();
+  const week = { used_percentage: 40, resets_at: resets };
+  const fable = { name: 'Fable', used_percentage: 70, resets_at: resets };
+  board.recordUsage('my-team/vader', {
+    seven_day: week,
+    account: 'one@example.com',
+    model: 'claude-fable-5-1',
+    model_windows: [fable],
+  });
+  board.recordUsage('my-team/leia', {
+    seven_day: week,
+    account: 'one@example.com',
+    model: 'claude-opus-5-5',
+  });
+  // list_agents: every agent on the account gets its window, with its own line and pace.
+  const paced = [
+    {
+      name: 'Fable',
+      used_percentage: 70,
+      resets_at: iso(resets * 1000),
+      line: 57.1,
+      lead: 12.9,
+      pace: 'ahead',
+      observed_at: iso(now),
+      stale: false,
+    },
+  ];
+  assert.deepEqual(board.agentUsage(LOBBY, 'leia')!.model_windows, paced);
+  assert.deepEqual(board.agentUsage(LOBBY, 'vader')!.model_windows, paced);
+  // The account card has a second bar; a row shows it only for an agent running Fable.
+  const view = board.view(LOBBY);
+  assert.deepEqual(view.accounts[0]!.windows, [
+    { name: 'Fable', used: 70, resets_at: iso(resets * 1000), line: 57, lead: 13, state: 'ahead' },
+  ]);
+  const rows = Object.fromEntries(view.agents.map((row) => [row.agent_id, row.usage?.windows]));
+  assert.deepEqual(rows.vader, [{ name: 'Fable', left: 30, resets_at: iso(resets * 1000) }]);
+  assert.deepEqual(rows.leia, []);
+  const html = renderBoardBody(view);
+  assert.match(html, /aria-label="Fable 70% used, 13 points ahead"/);
+  assert.match(html, /Fable <b>70% used<\/b> target 57%<\/span>/);
+  // Fable's window resets with the week, so the row leaves the reset to the week's.
+  assert.match(html, /<span>Fable <b>30% left<\/b><\/span>/);
+  assert.match(html, /own weekly limit/);
+  // A fresh week does not renew an old look.
+  now += 20 * 60_000;
+  board.recordUsage('my-team/leia', {
+    seven_day: week,
+    account: 'one@example.com',
+    model: 'claude-opus-5-5',
+  });
+  const later = board.agentUsage(LOBBY, 'leia')!;
+  assert.deepEqual(
+    [later.seven_day!.stale, later.model_windows![0]!.stale, later.model_windows![0]!.observed_at],
+    [false, true, iso(now - 20 * 60_000)],
+  );
+  // The freshest look's empty list clears it; with no look at all it is unknown.
+  board.recordUsage('my-team/vader', {
+    seven_day: week,
+    account: 'one@example.com',
+    model: 'claude-fable-5-1',
+    model_windows: [],
+  });
+  assert.deepEqual(board.agentUsage(LOBBY, 'leia')!.model_windows, []);
+  assert.deepEqual(board.view(LOBBY).accounts[0]!.windows, []);
+  assert.doesNotMatch(renderBoardBody(board.view(LOBBY)), /own weekly limit/);
+  board.recordUsage('my-team/padme', { seven_day: week, account: 'two@example.com' });
+  assert.equal(board.agentUsage(LOBBY, 'padme')!.model_windows, null);
 });
 
 test('an account card keeps the freshest reading that still has its week', (t) => {

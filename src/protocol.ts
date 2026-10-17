@@ -397,6 +397,28 @@ export const ModelId = z
   .max(80)
   .regex(/^[\w.[\]-]+$/u);
 export const Effort = z.enum(['low', 'medium', 'high', 'xhigh', 'max']);
+/**
+ * The weekly window of a model family with a limit of its own, such as Fable's, as Claude Code's
+ * /usage shows it ("Fable this week"). Its percentage is of that allowance, not of the whole week.
+ */
+export const ModelWindowSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1)
+      .max(40)
+      .regex(/^[\w .-]+$/u),
+    used_percentage: z.number().min(0).max(100),
+    /** Unix epoch seconds when the window resets. */
+    resets_at: z.number().int().positive(),
+  })
+  .strict();
+export type ModelWindow = z.infer<typeof ModelWindowSchema>;
+/** Whether a model family's window covers this model ID: Fable's covers claude-fable-5-1. */
+export function windowCovers(modelId: string, windowName: string): boolean {
+  const slug = windowName.trim().toLowerCase().replace(/[ .]+/gu, '-');
+  return slug !== '' && `-${modelId.toLowerCase().replace(/\[.*$/u, '')}-`.includes(`-${slug}-`);
+}
 export const UsageReportSchema = z
   .object({
     five_hour: UsageWindow.optional(),
@@ -412,6 +434,9 @@ export const UsageReportSchema = z
     effort: Effort.optional(),
     // The session's context window in tokens, such as 200000 or 1000000 (0.8.5).
     context: z.number().int().positive().max(100_000_000).optional(),
+    // The account's per-model weekly windows, such as Fable's, from Claude Code's usage (0.8.6).
+    // Present only while the status line's last look is fresh; an empty list says there are none.
+    model_windows: z.array(ModelWindowSchema).max(8).optional(),
   })
   .strict();
 export type UsageReport = z.infer<typeof UsageReportSchema>;
@@ -424,7 +449,7 @@ export type UsageReport = z.infer<typeof UsageReportSchema>;
 export const EVENT_VERSION = 5;
 export const EVENT_VERSION_HEADER = 'x-pocolobby-event-version';
 /** The package release; the adapter reports it as its MCP server version. */
-export const PACKAGE_VERSION = '0.8.5';
+export const PACKAGE_VERSION = '0.8.6';
 /** Extension data: keys in this form, at most this many, and this much JSON per object. */
 export const ExtensionKey = z.string().regex(/^[a-z][a-z0-9_]{0,63}$/);
 export const MAX_EXTENSION_KEYS = 32;

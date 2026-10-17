@@ -4,7 +4,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test, type TestContext } from 'node:test';
 import { LobbyClientError } from '../src/client.js';
-import { runStatusLine, statusText, usageReport, USAGE_RESEND_MS } from '../src/statusline.js';
+import { windowCovers, type ModelWindow } from '../src/protocol.js';
+import {
+  modelWindows,
+  runStatusLine,
+  statusText,
+  usageReport,
+  USAGE_RESEND_MS,
+} from '../src/statusline.js';
 
 // What Claude Code passes a status line for a Pro or Max account, abridged.
 const input = (fiveHour: number, week: number) =>
@@ -17,7 +24,10 @@ const input = (fiveHour: number, week: number) =>
     },
   });
 
-async function fixture(t: TestContext) {
+async function fixture(
+  t: TestContext,
+  windows: () => Promise<ModelWindow[] | null> = async () => null,
+) {
   const directory = await mkdtemp(join(tmpdir(), 'pocolobby-statusline-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   let now = Date.parse('2026-10-16T18:00:00Z');
@@ -31,6 +41,8 @@ async function fixture(t: TestContext) {
       lookups++;
       return { email: 'Johan@Example.com', plan: 'max' };
     },
+    // Never a real Claude Code in tests.
+    windows,
     client: {
       request: async (_method: string, _path: string, body?: unknown) => {
         if (!reachable) throw new Error('offline');
@@ -163,6 +175,7 @@ test('a broker before 0.8.4 gets the usage alone, and the whole report again at 
     now: () => now,
     statePath: join(directory, 'state.json'),
     account: async () => null,
+    windows: async () => null,
     client: {
       request: async (_method: string, _path: string, body?: unknown) => {
         tries++;
@@ -192,4 +205,113 @@ test('a broker before 0.8.4 gets the usage alone, and the whole report again at 
   now += USAGE_RESEND_MS;
   await run();
   assert.deepEqual([tries, sent.length], [4, 2]);
+});
+
+test('the status line reports a model’s own weekly window, such as Fable’s, from Claude Code’s usage (0.8.6)', async (t) => {
+  // Johan: "the usage for fable is a bit different than other models. we can only use 50% of our
+  // weekly usage for it." The status line input lacks that window; Claude Code's usage has it.
+  const fable = { name: 'Fable', used_percentage: 15, resets_at: 1_792_400_000 };
+  let answer: ModelWindow[] | null = [fable];
+  let looks = 0;
+  let triedBeforeAnswer = false;
+  const f = await fixture(t, async () => {
+    looks++;
+    // The try is remembered before Claude Code answers, so a cancelled run still counts.
+    triedBeforeAnswer = 'windows_tried_at' in JSON.parse(await readFile(f.statePath, 'utf8'));
+    return answer;
+  });
+  const stdin = JSON.stringify({ ...JSON.parse(input(10, 8)), model: { id: 'claude-fable-5-1' } });
+  assert.match(
+    await f.run(stdin),
+    /^5h 90% left, resets \d\d:\d\d, week 92% left, fable 85% left$/,
+  );
+  assert.equal(triedBeforeAnswer, true);
+  const last = () => f.sent.at(-1) as Record<string, unknown>;
+  assert.deepEqual(last().model_windows, [fable]);
+  // Claude Code is asked every 5 minutes at most, a failure included.
+  f.advance(60_000);
+  await f.run(stdin);
+  assert.equal(looks, 1);
+  answer = null;
+  f.advance(5 * 60_000);
+  await f.run(stdin);
+  f.advance(5 * 60_000);
+  await f.run(stdin);
+  assert.equal(looks, 3);
+  // Failed looks keep the last answer while it is fresh, then leave it out.
+  assert.deepEqual(last().model_windows, [fable]);
+  f.advance(5 * 60_000);
+  await f.run(stdin);
+  assert.equal('model_windows' in last(), false);
+  // An empty answer says the account has none.
+  answer = [];
+  f.advance(5 * 60_000);
+  await f.run(stdin);
+  assert.deepEqual(last().model_windows, []);
+  // A session on another model shows no window in its line, but still reports it.
+  answer = [fable];
+  f.advance(5 * 60_000);
+  const opus = JSON.stringify({ ...JSON.parse(input(10, 8)), model: { id: 'claude-opus-5-5' } });
+  assert.doesNotMatch(await f.run(opus), /fable/);
+  assert.deepEqual(last().model_windows, [fable]);
+});
+
+test('Claude Code’s usage answer gives the per-model windows, or null when it says nothing of them', () => {
+  const answer = (model_scoped: unknown, subtype = 'success') => ({
+    subtype,
+    request_id: 'usage',
+    response: { rate_limits_available: true, rate_limits: { seven_day: {}, model_scoped } },
+  });
+  assert.deepEqual(
+    modelWindows(
+      answer([
+        { display_name: 'Fable', utilization: 40, resets_at: '2026-10-22T14:59:59.819479+00:00' },
+        { display_name: 'Unknown', utilization: null, resets_at: null },
+      ]),
+    ),
+    [
+      {
+        name: 'Fable',
+        used_percentage: 40,
+        resets_at: Math.round(Date.parse('2026-10-22T14:59:59.819Z') / 1000),
+      },
+    ],
+  );
+  assert.deepEqual(modelWindows(answer([])), []);
+  assert.equal(modelWindows(answer(undefined)), null);
+  assert.equal(modelWindows(answer([], 'error')), null);
+  assert.equal(modelWindows(null), null);
+});
+
+test('a model window covers the models of its family', () => {
+  assert.equal(windowCovers('claude-fable-5-1', 'Fable'), true);
+  assert.equal(windowCovers('claude-fable-5-1[1m]', 'Fable'), true);
+  assert.equal(windowCovers('claude-opus-5-5', 'Fable'), false);
+  assert.equal(windowCovers('claude-opus-4-6', 'Opus 4'), true);
+  assert.equal(windowCovers('claude-fablemore-1', 'Fable'), false);
+});
+
+test('a broker before 0.8.6 gets the usage alone when it refuses the model windows', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'pocolobby-statusline-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const sent: Record<string, unknown>[] = [];
+  await runStatusLine({ url: 'https://lobby.test', token: 'x' }, '/agent.json', input(10, 20), {
+    now: () => Date.parse('2026-10-16T18:00:00Z'),
+    statePath: join(directory, 'state.json'),
+    account: async () => null,
+    windows: async () => [{ name: 'Fable', used_percentage: 15, resets_at: 1_792_400_000 }],
+    client: {
+      request: async (_method: string, _path: string, body?: unknown) => {
+        if (body && typeof body === 'object' && 'model_windows' in body)
+          throw new LobbyClientError(400, 'invalid_request');
+        sent.push(body as Record<string, unknown>);
+        return { recorded: true };
+      },
+    } as never,
+  });
+  assert.deepEqual(
+    // As sent on the wire, where a key without a value is left out.
+    sent.map((body) => Object.keys(JSON.parse(JSON.stringify(body))).sort()),
+    [['five_hour', 'seven_day']],
+  );
 });

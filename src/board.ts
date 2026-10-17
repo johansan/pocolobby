@@ -17,7 +17,14 @@ import {
   type SummaryClient,
 } from './board-summary.js';
 import { paceState, weeklyPace, type PaceState } from './pace.js';
-import { LobbyError, qualifyAgent, type Agent, type UsageReport } from './protocol.js';
+import {
+  LobbyError,
+  qualifyAgent,
+  windowCovers,
+  type Agent,
+  type ModelWindow,
+  type UsageReport,
+} from './protocol.js';
 import type { LobbyStore } from './store.js';
 
 /**
@@ -148,6 +155,10 @@ export interface UsageWindowView {
   left: number;
   resets_at: string;
 }
+/** A model family's own weekly window on an agent's row, such as Fable's (0.8.6). */
+export interface ModelWindowView extends UsageWindowView {
+  name: string;
+}
 export interface UsageView {
   /** The signed-in account, on a private board only (Johan: "show email on private only"). */
   account: string | null;
@@ -158,6 +169,8 @@ export interface UsageView {
   model: string | null;
   context: string | null;
   effort: string | null;
+  /** The weekly windows of the model family this agent's session runs, such as Fable's (0.8.6). */
+  windows: ModelWindowView[];
   observed_at: string;
 }
 /**
@@ -187,6 +200,16 @@ export function contextLabel(tokens: number): string {
   return tokens >= 1_000_000 && tokens % 1_000_000 === 0
     ? `${tokens / 1_000_000}M`
     : `${Math.round(tokens / 1000)}K`;
+}
+/** Model windows that have not reset yet, each with where an evenly spent week would be now. */
+function paced(
+  windows: ModelWindow[],
+  now: number,
+): { window: ModelWindow; pace: { line: number; lead: number } }[] {
+  return windows.flatMap((window) => {
+    const pace = weeklyPace(window.used_percentage, window.resets_at, now);
+    return pace ? [{ window, pace }] : [];
+  });
 }
 /** A reading older than this no longer shows: the agent's session has not run for a day. */
 export const USAGE_SHOWN_MS = 24 * 60 * 60_000;
@@ -221,6 +244,13 @@ export function usageView(
     model: reading.report.model ? modelLabel(reading.report.model) : null,
     context: contextLabelOf(reading.report),
     effort: reading.report.effort ?? null,
+    windows: (reading.report.model_windows ?? []).flatMap((value) => {
+      const shown = window(value);
+      const model = reading.report.model;
+      return shown && model && windowCovers(model, value.name)
+        ? [{ name: value.name, ...shown }]
+        : [];
+    }),
     observed_at: new Date(reading.at).toISOString(),
   };
   return view.five_hour || view.seven_day || view.account || view.model ? view : null;
@@ -279,6 +309,15 @@ export interface AccountView {
   line: number;
   lead: number;
   state: PaceState;
+  /** Its model families' own weekly windows, such as Fable's, each against its line (0.8.6). */
+  windows: {
+    name: string;
+    used: number;
+    resets_at: string;
+    line: number;
+    lead: number;
+    state: PaceState;
+  }[];
   observed_at: string;
 }
 interface Reading {
@@ -308,6 +347,22 @@ export interface AgentUsage {
   context_window: number | null;
   /** The session's reasoning effort: low, medium, high, xhigh or max. */
   effort: string | null;
+  /**
+   * The account's model families with a weekly limit of their own, such as Fable's, each with its
+   * line and pace like the week, from the account's freshest look; null when none is known (0.8.6).
+   */
+  model_windows:
+    | {
+        name: string;
+        used_percentage: number;
+        resets_at: string;
+        line: number;
+        lead: number;
+        pace: PaceState;
+        observed_at: string;
+        stale: boolean;
+      }[]
+    | null;
   /** When this agent's own status line last reported. */
   observed_at: string;
 }
@@ -667,6 +722,15 @@ export class BoardService {
         ).get(report.account)
       : undefined;
     const source = shared ?? reading;
+    // The model windows have a freshness of their own: a fresh week must not renew an old look.
+    const looked =
+      (report.account
+        ? this.accountLooks(
+            lobby,
+            this.enabledAgents(lobby).map((agent) => agent.agent_id),
+            now,
+          ).get(report.account)
+        : undefined) ?? (report.model_windows ? reading : undefined);
     const seven = source.report.seven_day;
     const week = window(seven);
     const pace = seven ? weeklyPace(seven.used_percentage, seven.resets_at, now) : null;
@@ -689,8 +753,36 @@ export class BoardService {
       model_name: report.model ? modelLabel(report.model) : null,
       context_window: contextWindow(report),
       effort: report.effort ?? null,
+      model_windows: looked
+        ? paced(looked.report.model_windows ?? [], now).map(({ window, pace }) => ({
+            name: window.name,
+            used_percentage: window.used_percentage,
+            resets_at: new Date(window.resets_at * 1000).toISOString(),
+            ...pace,
+            pace: paceState(pace.lead),
+            observed_at: new Date(looked.at).toISOString(),
+            stale: now - looked.at >= USAGE_STALE_MS,
+          }))
+        : null,
       observed_at: new Date(reading.at).toISOString(),
     };
+  }
+
+  /**
+   * Each account's freshest reading among these agents that carries the model windows: the
+   * status line sends them only while its last look at Claude Code's usage is fresh, and an empty
+   * list from the freshest look clears the ones before it.
+   */
+  private accountLooks(lobby: string, agentIds: string[], now: number): Map<string, Reading> {
+    const looks = new Map<string, Reading>();
+    for (const id of agentIds) {
+      const reading = this.usage.get(qualifyAgent(lobby, id));
+      const account = reading?.report.account;
+      if (!reading || !account || !reading.report.model_windows) continue;
+      if (now - reading.at >= USAGE_SHOWN_MS) continue;
+      if (reading.at > (looks.get(account)?.at ?? -Infinity)) looks.set(account, reading);
+    }
+    return looks;
   }
 
   /**
@@ -728,6 +820,11 @@ export class BoardService {
       agents.map((agent) => agent.agent_id),
       now,
     );
+    const looks = this.accountLooks(
+      lobby,
+      agents.map((agent) => agent.agent_id),
+      now,
+    );
     const accounts = new Map<string, string[]>();
     for (const agent of agents) {
       const reading = this.usage.get(qualifyAgent(lobby, agent.agent_id));
@@ -752,6 +849,16 @@ export class BoardService {
             line: Math.round(pace.line),
             lead: Math.round(pace.lead),
             state: paceState(pace.lead),
+            windows: paced(looks.get(account)?.report.model_windows ?? [], now).map(
+              ({ window, pace: windowPace }) => ({
+                name: window.name,
+                used: Math.round(window.used_percentage),
+                resets_at: new Date(window.resets_at * 1000).toISOString(),
+                line: Math.round(windowPace.line),
+                lead: Math.round(windowPace.lead),
+                state: paceState(windowPace.lead),
+              }),
+            ),
             observed_at: new Date(fresh.at).toISOString(),
           },
         ];
